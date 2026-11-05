@@ -10,7 +10,7 @@ import type { CategoryId } from "@/lib/types";
 import { PageHeader } from "@/components/layout/page-parts";
 import { Button } from "@/components/ui/button";
 import { Card, FieldError, Input, Textarea } from "@/components/ui/basic";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/overlays";
+import { ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/overlays";
 import { Label, Switch } from "@/components/ui/primitives";
 import { useAdminStore, type CategorySetting } from "@/store/admin-store";
 import { useRequestsStore } from "@/store/requests-store";
@@ -32,6 +32,7 @@ export default function AdminCategoriesPage() {
   const updateCategory = useAdminStore((s) => s.updateCategory);
   const requests = useRequestsStore((s) => s.requests);
   const [editing, setEditing] = React.useState<CategorySetting | null>(null);
+  const [disabling, setDisabling] = React.useState<CategoryId | null>(null);
 
   const counts = React.useMemo(() => {
     const m = new Map<CategoryId, { total: number; active: number }>();
@@ -49,7 +50,7 @@ export default function AdminCategoriesPage() {
       <PageHeader
         eyebrow="Configuration"
         title="Categories"
-        description="Control which bill categories requesters can choose and the maximum request size per category (USD equivalent)."
+        description="Control which bill categories requesters can choose and the maximum request size per category (USD equivalent at fixed demo rates)."
       />
       <div className="grid gap-4 md:grid-cols-2">
         {categories.map((c) => {
@@ -73,8 +74,13 @@ export default function AdminCategoriesPage() {
                         id={`cat-${c.id}`}
                         checked={c.enabled}
                         onCheckedChange={(v) => {
-                          updateCategory(c.id, { enabled: v });
-                          toast.success(`${meta.label} ${v ? "enabled" : "disabled"}`);
+                          // Disabling hides live requests from donors, so it needs a confirmation. Enabling is harmless.
+                          if (!v) {
+                            setDisabling(c.id);
+                            return;
+                          }
+                          updateCategory(c.id, { enabled: true });
+                          toast.success(`${meta.label} enabled`);
                         }}
                       />
                     </div>
@@ -112,6 +118,24 @@ export default function AdminCategoriesPage() {
           updateCategory(id, v);
           toast.success(`${CATEGORY_MAP[id].label} updated`);
           setEditing(null);
+        }}
+      />
+      <ConfirmDialog
+        open={!!disabling}
+        onOpenChange={(o) => !o && setDisabling(null)}
+        title={disabling ? `Disable ${CATEGORY_MAP[disabling].label}?` : ""}
+        description={
+          disabling
+            ? `Requesters won't be able to choose this category, and its ${counts.get(disabling)?.active ?? 0} active request(s) will be hidden from Discover until you enable it again. Nothing is deleted.`
+            : ""
+        }
+        confirmLabel="Disable category"
+        destructive
+        onConfirm={() => {
+          if (!disabling) return;
+          updateCategory(disabling, { enabled: false });
+          toast.success(`${CATEGORY_MAP[disabling].label} disabled`);
+          setDisabling(null);
         }}
       />
     </div>

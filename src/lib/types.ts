@@ -33,8 +33,15 @@ export interface BillRequest {
   flagged: boolean;
   /** Bill document metadata only — documents themselves are never stored. */
   document?: { name: string; type: string; sizeKb: number };
+  /** Optional itemised breakdown, in the request's currency. Should sum to `amount`. */
+  breakdown?: BillLineItem[];
   adminNote?: string;
   isDemo: true;
+}
+
+export interface BillLineItem {
+  label: string;
+  amount: number;
 }
 
 export interface DemoUser {

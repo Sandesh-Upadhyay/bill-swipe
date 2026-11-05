@@ -66,7 +66,7 @@ export default function AdminDonationsPage() {
       <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-200">
         <FlaskConical className="mt-0.5 size-4 shrink-0" />
         <p>
-          Every figure on this page is <strong>simulated</strong>. BillSwipe Prototype v1.0 does not collect, hold or transfer money, and no
+          Every figure on this page is <strong>simulated</strong>. BillSwipe Prototype v1.1 does not collect, hold or transfer money, and no
           requester has received funds. USD equivalents use fixed, fictional demo rates.
         </p>
       </div>
@@ -74,7 +74,7 @@ export default function AdminDonationsPage() {
         <StatCard label="Simulated total" value={formatCurrency(totalUsd, "USD")} hint={`${recorded.length} recorded entries`} icon={HandCoins} tone="primary" />
         <StatCard label="Open commitments" value={formatCurrency(openUsd, "USD")} hint={`${openCommitments.length} pledges`} icon={Hourglass} tone="warning" />
         <StatCard label="Unique donors" value={donors} icon={Users} />
-        <StatCard label="Average entry" value={formatCurrency(recorded.length ? totalUsd / recorded.length : 0, "USD")} hint="USD equivalent" icon={HandCoins} />
+        <StatCard label="Average entry" value={formatCurrency(recorded.length ? totalUsd / recorded.length : 0, "USD")} hint="≈ USD at fixed demo rates" icon={HandCoins} />
       </div>
       <Card className="overflow-hidden">
         <Toolbar>
@@ -114,7 +114,7 @@ export default function AdminDonationsPage() {
               <TableHead>Request</TableHead>
               <TableHead>Type</TableHead>
               <TableHead className="text-right">Amount</TableHead>
-              <SortableHead label="USD equiv." sortKey="usd" sort={sort} onSort={toggle} className="text-right" />
+              <SortableHead label="≈ USD (demo rate)" sortKey="usd" sort={sort} onSort={toggle} className="text-right" />
             </TableRow>
           </TableHeader>
           <TableBody>

@@ -14,11 +14,13 @@ import { useContributionsStore } from "@/store/contributions-store";
 import { formatCurrency, formatNumber, timeAgo, toUsd } from "@/lib/utils";
 import { ChartCard, ChartTooltip, axisProps, useContributionSeries, usdFormatter } from "@/components/admin/charts";
 import { RequestDetailDrawer } from "@/components/admin/request-detail-drawer";
+import { ActivityTimeline } from "@/components/dashboard/timeline";
 
 export default function AdminOverviewPage() {
   const requests = useRequestsStore((s) => s.requests);
   const reports = useRequestsStore((s) => s.reports);
   const users = useAdminStore((s) => s.users);
+  const moderationLog = useAdminStore((s) => s.moderationLog);
   const contributions = useContributionsStore((s) => s.contributions);
   const [openId, setOpenId] = React.useState<string | null>(null);
 
@@ -126,43 +128,58 @@ export default function AdminOverviewPage() {
         </ChartCard>
       </div>
 
-      <ChartCard
-        title="Recent requests"
-        description="Newest submissions across all countries"
-        action={
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/admin/requests">
-              All requests <ArrowRight />
-            </Link>
-          </Button>
-        }
-      >
-        <ul className="divide-y">
-          {recent.map((r) => (
-            <li key={r.id}>
-              <button
-                onClick={() => setOpenId(r.id)}
-                className="flex w-full flex-col gap-2 py-3 text-left transition hover:bg-muted/40 sm:flex-row sm:items-center sm:gap-4 sm:px-2"
-              >
-                <span className="flex min-w-0 flex-1 items-center gap-3">
-                  <DemoAvatar seed={r.image} className="size-9" label={r.name} />
-                  <span className="grid min-w-0">
-                    <span className="truncate text-sm font-medium">{r.title}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {r.name} · {r.city} · {timeAgo(r.createdAt)}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <ChartCard
+          title="Recent requests"
+          description="Newest submissions across all countries"
+          action={
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/admin/requests">
+                All requests <ArrowRight />
+              </Link>
+            </Button>
+          }
+        >
+          <ul className="divide-y">
+            {recent.map((r) => (
+              <li key={r.id}>
+                <button
+                  onClick={() => setOpenId(r.id)}
+                  className="flex w-full flex-col gap-2 py-3 text-left transition hover:bg-muted/40 sm:flex-row sm:items-center sm:gap-4 sm:px-2"
+                >
+                  <span className="flex min-w-0 flex-1 items-center gap-3">
+                    <DemoAvatar seed={r.image} className="size-9" label={r.name} />
+                    <span className="grid min-w-0">
+                      <span className="truncate text-sm font-medium">{r.title}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {r.name} · {r.city} · {timeAgo(r.createdAt)}
+                      </span>
                     </span>
                   </span>
-                </span>
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium tabular-nums">{formatCurrency(r.amount, r.currency)}</span>
-                  <StatusBadge status={r.status} />
-                  <VerificationBadge state={r.verification} />
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </ChartCard>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium tabular-nums">{formatCurrency(r.amount, r.currency)}</span>
+                    <StatusBadge status={r.status} />
+                    <VerificationBadge state={r.verification} />
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </ChartCard>
+        <ActivityTimeline
+          title="Moderation log"
+          description="Every moderator decision made in this browser, newest first."
+          entries={moderationLog.map((m) => ({
+            id: m.id,
+            kind: m.kind,
+            text: m.text,
+            createdAt: m.createdAt,
+            href: m.requestId ? `/requests/${m.requestId}` : m.userId ? "/admin/users" : m.kind === "category" ? "/admin/categories" : undefined,
+          }))}
+          emptyText="Approvals, rejections, flags, report decisions and user changes will be recorded here."
+          initialCount={6}
+        />
+      </div>
 
       <RequestDetailDrawer requestId={openId} onOpenChange={(o) => !o && setOpenId(null)} />
     </div>

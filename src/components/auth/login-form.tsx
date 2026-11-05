@@ -66,9 +66,13 @@ export function LoginForm() {
   const quickLogin = async (key: keyof typeof DEMO_ACCOUNTS) => {
     setQuickLoading(key);
     await new Promise((r) => setTimeout(r, 350));
-    const s = DEMO_ACCOUNTS[key] as Session;
-    login(s);
-    finish(s);
+    const res = login(DEMO_ACCOUNTS[key] as Session);
+    if (!res.ok) {
+      setQuickLoading(null);
+      toast.error(res.error);
+      return;
+    }
+    finish(res.session);
   };
 
   return (

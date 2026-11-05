@@ -1,7 +1,7 @@
 "use client";
 
-import type { CategoryId, CountryCode } from "@/lib/types";
-import { CATEGORIES, COUNTRIES } from "@/lib/constants";
+import type { CategoryId, CountryCode, CurrencyCode } from "@/lib/types";
+import { CATEGORIES, COUNTRIES, CURRENCIES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label, Switch } from "@/components/ui/primitives";
@@ -10,12 +10,14 @@ import { usePreferencesStore } from "@/store/preferences-store";
 export interface DiscoverFilterState {
   categories: CategoryId[];
   countries: CountryCode[];
+  currencies: CurrencyCode[];
   approvedOnly: boolean;
 }
 
-export const EMPTY_FILTERS: DiscoverFilterState = { categories: [], countries: [], approvedOnly: false };
+export const EMPTY_FILTERS: DiscoverFilterState = { categories: [], countries: [], currencies: [], approvedOnly: false };
 
-export const activeFilterCount = (f: DiscoverFilterState) => f.categories.length + f.countries.length + (f.approvedOnly ? 1 : 0);
+export const activeFilterCount = (f: DiscoverFilterState) =>
+  f.categories.length + f.countries.length + f.currencies.length + (f.approvedOnly ? 1 : 0);
 
 function Chip({ active, onClick, children, label }: { active: boolean; onClick: () => void; children: React.ReactNode; label: string }) {
   return (
@@ -79,6 +81,23 @@ export function DiscoverFilters({
               onClick={() => onChange({ ...value, countries: toggle(value.countries, c.code) })}
             >
               <span aria-hidden>{c.flag}</span> {c.code === "AE" ? "UAE" : c.code === "GB" ? "UK" : c.code === "US" ? "USA" : c.name}
+            </Chip>
+          ))}
+        </div>
+      </section>
+      <section className="grid gap-3" aria-labelledby="f-currency">
+        <h3 id="f-currency" className="text-sm font-semibold">
+          Currency
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {CURRENCIES.map((c) => (
+            <Chip
+              key={c.code}
+              label={`Filter by ${c.name}`}
+              active={value.currencies.includes(c.code)}
+              onClick={() => onChange({ ...value, currencies: toggle(value.currencies, c.code) })}
+            >
+              <span className="font-mono text-[11px] tracking-wide">{c.code}</span>
             </Chip>
           ))}
         </div>

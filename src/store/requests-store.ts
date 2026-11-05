@@ -30,6 +30,7 @@ export interface NewRequestInput {
   story: string;
   dueDate: string;
   document?: BillRequest["document"];
+  breakdown?: BillRequest["breakdown"];
 }
 
 export type EditableFields = Partial<

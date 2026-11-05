@@ -3,10 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { useForm, type UseFormReturn } from "react-hook-form";
+import { useFieldArray, useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, FileText, Loader2, PencilLine, Repeat2, Send } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, FileText, Loader2, PencilLine, Plus, Repeat2, Send, Trash2 } from "lucide-react";
 import { CATEGORIES, CATEGORY_MAP, COUNTRIES, COUNTRY_MAP, CURRENCIES } from "@/lib/constants";
 import { cn, dueLabel, formatCurrency, formatDate, toUsd } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,17 @@ import { PageContainer } from "@/components/layout/page-parts";
 import { CategoryBadge, FictionalTag } from "@/components/requests/badges";
 import { DemoAvatar } from "@/components/brand/demo-avatar";
 import { DocumentStep, type SelectedDocument } from "./document-step";
-import { STEP_FIELDS, STEPS, buildSubmitSchema, type SubmitValues } from "./schema";
+import {
+  MAX_BREAKDOWN_ITEMS,
+  STEP_FIELDS,
+  STEPS,
+  amountLimitError,
+  breakdownMismatch,
+  buildSubmitSchema,
+  type SubmitValues,
+} from "./schema";
+import type { CategoryId } from "@/lib/types";
+import type { CategorySetting } from "@/store/admin-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useAdminStore } from "@/store/admin-store";
 import { useRequestsStore } from "@/store/requests-store";
@@ -93,14 +103,15 @@ function PersonalStep({ form, email }: { form: Form; email: string }) {
   );
 }
 
-function CategoryStep({ form, enabled }: { form: Form; enabled: string[] }) {
+function CategoryStep({ form, settings }: { form: Form; settings: CategorySetting[] }) {
   const value = form.watch("category");
   const err = form.formState.errors.category?.message;
+  const byId = new Map(settings.map((s) => [s.id, s]));
   return (
     <fieldset className="grid gap-3">
       <legend className="sr-only">Bill category</legend>
       <div className="grid gap-3 sm:grid-cols-2">
-        {CATEGORIES.filter((c) => enabled.includes(c.id)).map((c) => {
+        {CATEGORIES.filter((c) => byId.get(c.id)?.enabled ?? true).map((c) => {
           const active = value === c.id;
           return (
             <button
@@ -118,7 +129,7 @@ function CategoryStep({ form, enabled }: { form: Form; enabled: string[] }) {
               </span>
               <span className="grid gap-0.5">
                 <span className="font-medium">{c.label}</span>
-                <span className="text-xs text-muted-foreground">{c.description}</span>
+                <span className="text-xs text-muted-foreground">{byId.get(c.id)?.description ?? c.description}</span>
               </span>
               {active && <Check className="ml-auto size-4 shrink-0 text-primary" />}
             </button>
@@ -170,9 +181,117 @@ function AmountStep({ form, maxUsd }: { form: Form; maxUsd: number }) {
         </div>
       )}
       <p className="text-xs text-muted-foreground">
-        Demo limit: about {formatCurrency(maxUsd, "USD")} per request (USD equivalent). Donors always see your local currency.
+        Demo limit for this category: about {formatCurrency(maxUsd, "USD")} per request (USD equivalent at fixed demo rates, not live exchange rates). Donors always see your local currency.
       </p>
+      <BreakdownEditor form={form} />
     </div>
+  );
+}
+
+/** Optional itemised lines. Itemised bills are easier for donors to trust and for moderators to review. */
+function BreakdownEditor({ form }: { form: Form }) {
+  const { control, register, formState, watch, setValue, clearErrors } = form;
+  const { fields, append, remove } = useFieldArray({ control, name: "breakdown" });
+  const amount = watch("amount");
+  const currency = watch("currency");
+  const items = watch("breakdown") ?? [];
+  const sum = items.reduce((s, i) => s + (Number.isFinite(i?.amount) ? i.amount : 0), 0);
+  const remaining = Number.isFinite(amount) ? Math.round((amount - sum) * 100) / 100 : null;
+  const e = formState.errors.breakdown;
+  const rootError = e?.message ?? e?.root?.message;
+
+  return (
+    <fieldset className="grid gap-3 rounded-2xl border p-4 sm:p-5">
+      <legend className="px-1 text-sm font-medium">
+        Itemise your bill <span className="font-normal text-muted-foreground">(optional)</span>
+      </legend>
+      <p className="-mt-1 text-xs text-muted-foreground">
+        List what the amount covers, such as &ldquo;Two months of rent&rdquo; and &ldquo;Late fee&rdquo;. Items must add up to the amount outstanding.
+      </p>
+      {fields.length > 0 && (
+        <ul className="grid gap-2.5">
+          {fields.map((f, i) => {
+            const le = e?.[i];
+            return (
+              <li key={f.id} className="grid grid-cols-[minmax(0,1fr)_7.5rem_auto] items-start gap-2">
+                <div className="grid gap-1">
+                  <Label htmlFor={`bd-label-${i}`} className="sr-only">
+                    Item {i + 1} description
+                  </Label>
+                  <Input
+                    id={`bd-label-${i}`}
+                    placeholder={`Item ${i + 1}`}
+                    aria-invalid={!!le?.label}
+                    aria-describedby={le?.label ? `bd-label-${i}-error` : undefined}
+                    {...register(`breakdown.${i}.label`)}
+                  />
+                  <FieldError message={le?.label?.message} id={`bd-label-${i}-error`} />
+                </div>
+                <div className="grid gap-1">
+                  <Label htmlFor={`bd-amount-${i}`} className="sr-only">
+                    Item {i + 1} amount
+                  </Label>
+                  <Input
+                    id={`bd-amount-${i}`}
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="0.01"
+                    placeholder="0"
+                    className="text-right tabular-nums"
+                    aria-invalid={!!le?.amount}
+                    aria-describedby={le?.amount ? `bd-amount-${i}-error` : undefined}
+                    {...register(`breakdown.${i}.amount`, { valueAsNumber: true })}
+                  />
+                  <FieldError message={le?.amount?.message} id={`bd-amount-${i}-error`} />
+                </div>
+                <Button type="button" variant="ghost" size="icon" aria-label={`Remove item ${i + 1}`} onClick={() => remove(i)}>
+                  <Trash2 />
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={fields.length >= MAX_BREAKDOWN_ITEMS}
+          onClick={() => {
+            clearErrors("breakdown");
+            // Pre-fill the last line with whatever is still unaccounted for.
+            const prefill = remaining && remaining > 0 && fields.length > 0 ? remaining : (undefined as unknown as number);
+            append({ label: "", amount: prefill }, { shouldFocus: true });
+          }}
+        >
+          <Plus /> Add item
+        </Button>
+        {fields.length > 0 && currency && remaining !== null && (
+          <p className={cn("text-xs tabular-nums", remaining === 0 ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground")} aria-live="polite">
+            {remaining === 0
+              ? "Items match the amount outstanding"
+              : remaining > 0
+                ? `${formatCurrency(remaining, currency, { decimals: true })} not yet itemised`
+                : `${formatCurrency(-remaining, currency, { decimals: true })} over the amount`}
+          </p>
+        )}
+      </div>
+      {fields.length > 0 && (
+        <button
+          type="button"
+          className="justify-self-start text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          onClick={() => {
+            setValue("breakdown", [], { shouldDirty: true });
+            clearErrors("breakdown");
+          }}
+        >
+          Remove all items
+        </button>
+      )}
+      <FieldError message={rootError} id="breakdown-error" />
+    </fieldset>
   );
 }
 
@@ -234,6 +353,11 @@ function ReviewStep({ form, doc, goTo }: { form: Form; doc: SelectedDocument | n
     { step: 0, label: "Location", value: `${v.city}, ${country?.flag} ${country?.name}` },
     { step: 1, label: "Category", value: v.category ? <CategoryBadge category={v.category} /> : "—" },
     { step: 2, label: "Amount", value: v.currency && Number.isFinite(v.amount) ? formatCurrency(v.amount, v.currency, { decimals: true }) : "—" },
+    {
+      step: 2,
+      label: "Breakdown",
+      value: v.breakdown?.length ? `${v.breakdown.length} ${v.breakdown.length === 1 ? "item" : "items"}` : "Not itemised",
+    },
     { step: 3, label: "Due date", value: v.dueDate ? formatDate(v.dueDate + "T12:00:00") : "—" },
     { step: 4, label: "Title", value: v.title },
     { step: 5, label: "Document", value: doc ? `${doc.file.name} (local only)` : "None selected" },
@@ -295,9 +419,13 @@ export function SubmitWizard() {
   const upsertUser = useAdminStore((s) => s.upsertUser);
   const settings = useAdminStore((s) => s.settings);
   const categorySettings = useAdminStore((s) => s.categories);
-  const enabledCategories = React.useMemo(
-    () => categorySettings.filter((c) => c.enabled).map((c) => c.id as string),
-    [categorySettings],
+  /** Effective per-request limit: the lower of the platform limit and the category's own limit. */
+  const limitFor = React.useCallback(
+    (category: CategoryId | undefined) => {
+      const cat = categorySettings.find((c) => c.id === category);
+      return cat ? Math.min(settings.maxRequestUsd, cat.maxAmountUsd) : settings.maxRequestUsd;
+    },
+    [categorySettings, settings.maxRequestUsd],
   );
   const createRequest = useRequestsStore((s) => s.createRequest);
   const push = useNotificationsStore((s) => s.push);
@@ -310,7 +438,7 @@ export function SubmitWizard() {
   const [docError, setDocError] = React.useState<string>();
   const [submitted, setSubmitted] = React.useState<string | null>(null);
 
-  const schema = React.useMemo(() => buildSubmitSchema(settings.maxRequestUsd), [settings.maxRequestUsd]);
+  const schema = React.useMemo(() => buildSubmitSchema(limitFor), [limitFor]);
   const form = useForm<SubmitValues>({
     resolver: zodResolver(schema),
     mode: "onTouched",
@@ -320,6 +448,7 @@ export function SubmitWizard() {
       city: "",
       currency: COUNTRY_MAP[session?.country ?? "US"].currency,
       amount: undefined as unknown as number,
+      breakdown: [],
       dueDate: "",
       title: "",
       summary: "",
@@ -387,6 +516,20 @@ export function SubmitWizard() {
     const fields = STEP_FIELDS[step];
     const ok = fields.length ? await form.trigger(fields, { shouldFocus: true }) : true;
     if (!ok) return;
+    if (step === 2) {
+      // Cross-field checks: the schema's object-level refinements only run once every step is filled in.
+      const { amount, currency, category, breakdown } = form.getValues();
+      const overLimit = amountLimitError(amount, currency, limitFor(category));
+      if (overLimit) {
+        form.setError("amount", { type: "custom", message: overLimit }, { shouldFocus: true });
+        return;
+      }
+      const mismatch = breakdownMismatch(amount, currency, breakdown);
+      if (mismatch) {
+        form.setError("breakdown", { type: "custom", message: mismatch });
+        return;
+      }
+    }
     if (step === 5) {
       if (settings.requireDocument && !doc) {
         setDocError("Select a bill document (sample or redacted) to continue. Moderators require one in the current demo settings.");
@@ -415,6 +558,9 @@ export function SubmitWizard() {
       summary: values.summary,
       story: values.story,
       dueDate: new Date(values.dueDate + "T12:00:00").toISOString(),
+      breakdown: values.breakdown.length
+        ? values.breakdown.map((b) => ({ label: b.label.trim(), amount: Math.round(b.amount * 100) / 100 }))
+        : undefined,
       // Metadata only — the file itself is discarded.
       document: doc ? { name: doc.file.name, type: doc.file.type, sizeKb: Math.round(doc.file.size / 1024) } : undefined,
     });
@@ -557,8 +703,8 @@ export function SubmitWizard() {
                   transition={{ duration: 0.22 }}
                 >
                   {step === 0 && <PersonalStep form={form} email={session.email} />}
-                  {step === 1 && <CategoryStep form={form} enabled={enabledCategories} />}
-                  {step === 2 && <AmountStep form={form} maxUsd={settings.maxRequestUsd} />}
+                  {step === 1 && <CategoryStep form={form} settings={categorySettings} />}
+                  {step === 2 && <AmountStep form={form} maxUsd={limitFor(form.getValues("category"))} />}
                   {step === 3 && <DueDateStep form={form} />}
                   {step === 4 && <StoryStep form={form} />}
                   {step === 5 && (
@@ -595,7 +741,8 @@ export function SubmitWizard() {
           </Card>
           {step === 1 && form.watch("category") && (
             <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <FileText className="size-3.5" /> {CATEGORY_MAP[form.watch("category")].description}
+              <FileText className="size-3.5" />{" "}
+              {categorySettings.find((c) => c.id === form.watch("category"))?.description ?? CATEGORY_MAP[form.watch("category")].description}
             </p>
           )}
         </form>

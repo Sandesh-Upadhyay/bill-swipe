@@ -183,4 +183,12 @@
   html {
     scroll-behavior: auto;
   }
+  /* Calm CSS animations and transitions (skeleton pulses, hovers). Framer Motion pieces check useReducedMotion. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

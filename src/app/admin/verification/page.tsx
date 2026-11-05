@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { CalendarClock, ClipboardCheck, Eye, FileText, Info } from "lucide-react";
+import { CalendarClock, ClipboardCheck, Eye, FileText, Info, Search, SearchX } from "lucide-react";
 import { PageHeader, EmptyState } from "@/components/layout/page-parts";
 import { DemoAvatar } from "@/components/brand/demo-avatar";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/basic";
+import { Card, Input } from "@/components/ui/basic";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/primitives";
 import { CategoryBadge, CountryLabel, StatusBadge, VerificationBadge } from "@/components/requests/badges";
 import { useRequestsStore } from "@/store/requests-store";
@@ -19,6 +19,7 @@ export default function VerificationQueuePage() {
   const requests = useRequestsStore((s) => s.requests);
   const [tab, setTab] = React.useState<QueueTab>("all");
   const [openId, setOpenId] = React.useState<string | null>(null);
+  const [query, setQuery] = React.useState("");
 
   const queue = React.useMemo(
     () =>
@@ -38,7 +39,10 @@ export default function VerificationQueuePage() {
     needs_info: queue.filter((r) => r.status === "needs_info").length,
     unverified: queue.filter((r) => r.status === "active").length,
   };
-  const shown = queue.filter((r) => (tab === "all" ? true : tab === "unverified" ? r.status === "active" : r.status === tab));
+  const q = query.trim().toLowerCase();
+  const shown = queue
+    .filter((r) => (tab === "all" ? true : tab === "unverified" ? r.status === "active" : r.status === tab))
+    .filter((r) => !q || [r.title, r.name, r.city, r.id].some((f) => f.toLowerCase().includes(q)));
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -55,17 +59,43 @@ export default function VerificationQueuePage() {
         </p>
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as QueueTab)} className="mb-6">
-        <TabsList className="h-auto flex-wrap">
-          <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
-          <TabsTrigger value="pending_review">Pending review ({counts.pending_review})</TabsTrigger>
-          <TabsTrigger value="needs_info">Awaiting info ({counts.needs_info})</TabsTrigger>
-          <TabsTrigger value="unverified">Live, unreviewed ({counts.unverified})</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as QueueTab)}>
+          <TabsList className="h-auto flex-wrap">
+            <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
+            <TabsTrigger value="pending_review">Pending review ({counts.pending_review})</TabsTrigger>
+            <TabsTrigger value="needs_info">Awaiting info ({counts.needs_info})</TabsTrigger>
+            <TabsTrigger value="unverified">Live, unreviewed ({counts.unverified})</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="relative lg:w-72">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search title, name, city or ID"
+            aria-label="Search the verification queue"
+            className="pl-9"
+          />
+        </div>
+      </div>
 
       {shown.length === 0 ? (
-        <EmptyState icon={ClipboardCheck} title="Nothing to review" description="Every request in this view has been moderated. Nice work." />
+        query.trim() ? (
+          <EmptyState
+            icon={SearchX}
+            title="No matching requests"
+            description={`Nothing in this view matches “${query.trim()}”.`}
+            action={
+              <Button variant="outline" onClick={() => setQuery("")}>
+                Clear search
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState icon={ClipboardCheck} title="Nothing to review" description="Every request in this view has been moderated. Nice work." />
+        )
       ) : (
         <ul className="grid gap-4">
           {shown.map((r) => (

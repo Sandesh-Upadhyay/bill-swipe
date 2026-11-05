@@ -143,6 +143,7 @@ function UserDrawer({ userId, onOpenChange }: { userId: string | null; onOpenCha
   const user = useAdminStore((s) => s.users.find((u) => u.id === userId));
   const setUserStatus = useAdminStore((s) => s.setUserStatus);
   const setUserRole = useAdminStore((s) => s.setUserRole);
+  const syncModeratedUser = useAuthStore((s) => s.syncModeratedUser);
   const allRequests = useRequestsStore((s) => s.requests);
   const allContributions = useContributionsStore((s) => s.contributions);
   const sessionId = useAuthStore((s) => s.session?.userId);
@@ -257,8 +258,8 @@ function UserDrawer({ userId, onOpenChange }: { userId: string | null; onOpenCha
               title={user.status === "active" ? `Suspend ${user.name}?` : `Reactivate ${user.name}?`}
               description={
                 user.status === "active"
-                  ? "Suspended demo users are marked as such in the admin panel. Their existing requests remain until moderated."
-                  : "The user will be marked active again."
+                  ? "They won't be able to log in, anyone already signed in as them is locked out, and their requests are hidden from Discover, Explore and the homepage. Nothing is deleted."
+                  : "They can log in again and their active requests return to Discover and Explore."
               }
               confirmLabel={user.status === "active" ? "Suspend" : "Reactivate"}
               destructive={user.status === "active"}
@@ -272,11 +273,12 @@ function UserDrawer({ userId, onOpenChange }: { userId: string | null; onOpenCha
               open={!!pendingRole}
               onOpenChange={(o) => !o && setPendingRole(null)}
               title={`Change role to ${pendingRole ?? ""}?`}
-              description={`${user.name} will be shown as a ${pendingRole} in the demo admin panel.`}
+              description={`${user.name} becomes a ${pendingRole} straight away, including any active demo session, and keeps that role the next time they log in.`}
               confirmLabel="Change role"
               onConfirm={() => {
                 if (!pendingRole) return;
                 setUserRole(user.id, pendingRole);
+                syncModeratedUser(user.id, { role: pendingRole });
                 toast.success(`${user.name} is now a ${pendingRole}`);
                 setPendingRole(null);
               }}

@@ -7,8 +7,9 @@ import { toast } from "sonner";
 import { Ban, HandHeart, LogOut, Monitor, Moon, RotateCcw, ShieldCheck, Sun, Trash2, FileHeart } from "lucide-react";
 import type { Role, Session } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { FORMAT_LOCALES, type FormatLocale } from "@/lib/i18n/locale";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/basic";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, NativeSelect } from "@/components/ui/basic";
 import { ConfirmDialog } from "@/components/ui/overlays";
 import { Label, Switch } from "@/components/ui/primitives";
 import { DemoAvatar } from "@/components/brand/demo-avatar";
@@ -124,6 +125,8 @@ export function PreferencesCard() {
   const setCurrencyDisplay = usePreferencesStore((s) => s.setCurrencyDisplay);
   const showSwipeHints = usePreferencesStore((s) => s.showSwipeHints);
   const setShowSwipeHints = usePreferencesStore((s) => s.setShowSwipeHints);
+  const locale = usePreferencesStore((s) => s.locale);
+  const setLocale = usePreferencesStore((s) => s.setLocale);
   const { setTheme } = useTheme();
 
   const chooseTheme = (t: ThemePreference) => {
@@ -162,8 +165,30 @@ export function PreferencesCard() {
               Show ≈ USD
             </OptionButton>
           </div>
-          <p className="text-xs text-muted-foreground">USD equivalents use fixed, fictional demo rates.</p>
+          <p className="text-xs text-muted-foreground">USD equivalents use fixed, fictional demo rates, never live exchange rates.</p>
         </fieldset>
+        <div className="grid gap-2">
+          <Label htmlFor="format-locale">Regional format</Label>
+          <NativeSelect
+            id="format-locale"
+            value={locale}
+            onChange={(e) => {
+              setLocale(e.target.value as FormatLocale);
+              toast.success("Regional format updated");
+            }}
+            aria-describedby="format-locale-hint"
+          >
+            {FORMAT_LOCALES.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.label}
+              </option>
+            ))}
+          </NativeSelect>
+          <p id="format-locale-hint" className="text-xs text-muted-foreground">
+            How dates, numbers and amounts are written. Example: {FORMAT_LOCALES.find((l) => l.id === locale)?.example}. App text stays in
+            English for now.
+          </p>
+        </div>
         <div className="flex items-center justify-between gap-4">
           <div>
             <Label htmlFor="swipe-hints">Swipe hints</Label>

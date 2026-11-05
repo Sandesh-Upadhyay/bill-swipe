@@ -10,7 +10,9 @@ import { CategoryBadge, CountryLabel, FictionalTag, VerificationBadge } from "@/
 import { FundingProgress, Money } from "@/components/requests/money";
 
 export const SWIPE_THRESHOLD = 110;
-export type ExitDirection = SwipeDirection | "up";
+export type ExitDirection = SwipeDirection | "up" | "stack";
+/** Minimum time between deck actions, so a double-tap can't respond to two cards. */
+export const ACTION_LOCK_MS = 280;
 
 export function SwipeCardBody({ request, compact }: { request: BillRequest; compact?: boolean }) {
   return (
@@ -37,7 +39,11 @@ export function SwipeCardBody({ request, compact }: { request: BillRequest; comp
           <Money amount={request.amount} currency={request.currency} className="text-3xl font-semibold tracking-tight" />
           <span className="text-xs font-medium uppercase tracking-wider text-white/60">{request.currency} requested</span>
         </div>
-        {!compact && <p className="line-clamp-3 text-sm leading-relaxed text-white/85">{request.summary}</p>}
+        {!compact && (
+          <p className="line-clamp-3 text-sm leading-relaxed text-white/85 [@media(max-height:760px)]:line-clamp-2 [@media(max-height:680px)]:hidden">
+            {request.summary}
+          </p>
+        )}
         <FundingProgress raised={request.amountRaised} goal={request.amount} currency={request.currency} onDark />
         <div className="flex items-center justify-between text-xs text-white/70">
           <span className="inline-flex items-center gap-1.5">
@@ -54,12 +60,24 @@ export function SwipeCardBody({ request, compact }: { request: BillRequest; comp
   );
 }
 
-function Stamp({ label, opacity, className, icon }: { label: string; opacity: MotionValue<number>; className: string; icon: React.ReactNode }) {
+function Stamp({
+  label,
+  opacity,
+  scale,
+  className,
+  icon,
+}: {
+  label: string;
+  opacity: MotionValue<number>;
+  scale?: MotionValue<number>;
+  className: string;
+  icon: React.ReactNode;
+}) {
   return (
     <motion.div
-      style={{ opacity }}
+      style={{ opacity, scale }}
       className={cn(
-        "pointer-events-none absolute z-10 flex items-center gap-2 rounded-2xl border-[3px] px-4 py-2 text-lg font-bold uppercase tracking-widest backdrop-blur-sm",
+        "pointer-events-none absolute z-20 flex items-center gap-2 rounded-2xl border-[3px] px-4 py-2 text-lg font-extrabold uppercase tracking-widest shadow-lg backdrop-blur-sm",
         className,
       )}
       aria-hidden
@@ -70,17 +88,29 @@ function Stamp({ label, opacity, className, icon }: { label: string; opacity: Mo
   );
 }
 
-const exitVariants = {
-  initial: { scale: 0.94, y: 18, opacity: 0 },
-  enter: { scale: 1, y: 0, opacity: 1, transition: { type: "spring" as const, stiffness: 260, damping: 26 } },
-  exit: (dir: ExitDirection) => ({
-    x: dir === "right" ? 640 : dir === "left" ? -640 : 0,
-    y: dir === "up" ? -40 : 30,
-    rotate: dir === "right" ? 18 : dir === "left" ? -18 : 0,
-    opacity: 0,
-    transition: { duration: 0.32, ease: [0.32, 0.72, 0, 1] as [number, number, number, number] },
-  }),
+const EASE_OUT: [number, number, number, number] = [0.32, 0.72, 0, 1];
+
+/** Where a card enters from: the back of the stack, or the side it left when a swipe is undone. */
+export type EnterFrom = "stack" | SwipeDirection;
+
+const cardVariants = {
+  initial: (from: EnterFrom) =>
+    from === "stack"
+      ? { scale: 0.94, y: 18, x: 0, opacity: 0 }
+      : { scale: 1, y: 30, x: from === "right" ? 560 : -560, rotate: from === "right" ? 16 : -16, opacity: 0 },
+  enter: { scale: 1, y: 0, x: 0, rotate: 0, opacity: 1, transition: { type: "spring" as const, stiffness: 260, damping: 26 } },
 };
+
+const exitVariant = (dir: ExitDirection) =>
+  dir === "stack"
+    ? // Undo: the current card tucks back into the stack while the restored card flies in on top.
+      { scale: 0.94, y: 18, opacity: 0, transition: { duration: 0.22, ease: EASE_OUT } }
+    : {
+        x: dir === "right" ? 640 : dir === "left" ? -640 : 0,
+        y: dir === "up" ? -60 : 40,
+        opacity: 0,
+        transition: { duration: 0.34, ease: EASE_OUT },
+      };
 
 /** The draggable top card. Swipe right = interested, left = skip, up = details. */
 export function SwipeCard({
@@ -88,58 +118,77 @@ export function SwipeCard({
   onSwipe,
   onOpen,
   reducedMotion,
+  enterFrom = "stack",
 }: {
   request: BillRequest;
   onSwipe: (dir: SwipeDirection) => void;
   onOpen: () => void;
   reducedMotion: boolean;
+  enterFrom?: EnterFrom;
 }) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  const rotate = useTransform(x, [-260, 260], [-14, 14]);
+  // Rotation follows the drag, like a card pivoting from the hand holding it.
+  const rotate = useTransform(x, [-300, 0, 300], [-16, 0, 16]);
   const likeOpacity = useTransform(x, [20, SWIPE_THRESHOLD], [0, 1]);
   const skipOpacity = useTransform(x, [-SWIPE_THRESHOLD, -20], [1, 0]);
   const upOpacity = useTransform(y, [-SWIPE_THRESHOLD, -30], [1, 0]);
-  const dragged = React.useRef(false);
+  const likeScale = useTransform(x, [20, SWIPE_THRESHOLD], [0.85, 1]);
+  const skipScale = useTransform(x, [-SWIPE_THRESHOLD, -20], [1, 0.85]);
+  // Colour wash across the card while dragging: green for interested, red for skip.
+  const likeWash = useTransform(x, [0, SWIPE_THRESHOLD * 1.6], [0, 0.42]);
+  const skipWash = useTransform(x, [-SWIPE_THRESHOLD * 1.6, 0], [0.42, 0]);
 
   return (
     <motion.div
-      className="absolute inset-0 cursor-grab touch-none select-none active:cursor-grabbing"
+      className="absolute inset-0 cursor-grab touch-none select-none will-change-transform active:cursor-grabbing"
       style={{ x, y, rotate }}
       drag
       dragSnapToOrigin
       dragElastic={0.85}
       dragMomentum={false}
-      variants={reducedMotion ? undefined : exitVariants}
+      dragTransition={{ bounceStiffness: 380, bounceDamping: 24 }}
+      custom={enterFrom}
+      variants={reducedMotion ? undefined : cardVariants}
       initial={reducedMotion ? false : "initial"}
       animate={reducedMotion ? undefined : "enter"}
-      exit="exit"
-      whileTap={{ scale: 1.01 }}
-      onDragStart={() => {
-        dragged.current = true;
-      }}
+      exit={reducedMotion ? { opacity: 0, transition: { duration: 0.15 } } : (exitVariant as never)}
+      whileTap={{ scale: 1.015 }}
       onDragEnd={(_, info) => {
         const { offset, velocity } = info;
         if (offset.x > SWIPE_THRESHOLD || velocity.x > 700) onSwipe("right");
         else if (offset.x < -SWIPE_THRESHOLD || velocity.x < -700) onSwipe("left");
         else if (offset.y < -SWIPE_THRESHOLD || velocity.y < -700) onOpen();
-        setTimeout(() => (dragged.current = false), 0);
       }}
       role="group"
       aria-roledescription="Swipeable request card"
       aria-label={`${request.name}, ${request.title}. Use the buttons below or arrow keys to respond.`}
     >
       <div className="relative size-full overflow-hidden rounded-[2rem] border border-white/10 bg-card shadow-lift">
+        <motion.div
+          aria-hidden
+          style={{ opacity: likeWash }}
+          className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-l from-emerald-500 via-emerald-500/40 to-transparent mix-blend-soft-light"
+        />
+        <motion.div
+          aria-hidden
+          style={{ opacity: skipWash }}
+          className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-r from-rose-600 via-rose-600/40 to-transparent mix-blend-soft-light"
+        />
+        <motion.div aria-hidden style={{ opacity: likeOpacity }} className="pointer-events-none absolute inset-0 z-10 rounded-[2rem] ring-4 ring-inset ring-emerald-400/80" />
+        <motion.div aria-hidden style={{ opacity: skipOpacity }} className="pointer-events-none absolute inset-0 z-10 rounded-[2rem] ring-4 ring-inset ring-rose-500/80" />
         <Stamp
           label="Interested"
           opacity={likeOpacity}
-          className="left-5 top-20 -rotate-12 border-mint bg-mint/20 text-mint"
+          scale={likeScale}
+          className="left-5 top-20 -rotate-12 border-emerald-400 bg-emerald-500/25 text-emerald-100"
           icon={<Heart className="size-5" />}
         />
         <Stamp
           label="Skip"
           opacity={skipOpacity}
-          className="right-5 top-20 rotate-12 border-rose-400 bg-rose-500/20 text-rose-200"
+          scale={skipScale}
+          className="right-5 top-20 rotate-12 border-rose-400 bg-rose-500/25 text-rose-100"
           icon={<X className="size-5" />}
         />
         <Stamp

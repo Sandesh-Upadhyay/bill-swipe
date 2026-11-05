@@ -27,7 +27,7 @@ export const TESTIMONIALS = [
 export const FAQ = [
   {
     q: "Is BillSwipe a live donation platform?",
-    a: "Not yet. This is Prototype v1.0, built to demonstrate the experience. Every person, request, balance and contribution is fictional and simulated. No money is collected, charged or transferred.",
+    a: "Not yet. This is Prototype v1.1, built to demonstrate the experience. Every person, request, balance and contribution is fictional and simulated. No money is collected, charged or transferred.",
   },
   {
     q: "What happens when I swipe right?",

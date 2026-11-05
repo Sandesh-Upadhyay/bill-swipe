@@ -34,6 +34,7 @@ import { CategoryBadge, CountryLabel, FictionalTag, StatusBadge, VerificationBad
 import { FundingProgress, Money } from "./money";
 import { RequestCover, SaveButton } from "./request-card";
 import { ContributeDialog } from "./contribute-dialog";
+import { BillBreakdown } from "./bill-breakdown";
 import { SafetyMenu } from "./safety-actions";
 import { useHydrated } from "@/store/hydration-store";
 import { useAuthStore } from "@/store/auth-store";
@@ -41,6 +42,7 @@ import { useRequestsStore } from "@/store/requests-store";
 import { useContributionsStore } from "@/store/contributions-store";
 import { useBlockedIds, useSavedStore } from "@/store/saved-store";
 import { useSwipeHistory, useSwipeStore } from "@/store/swipe-store";
+import { useSuspendedUserIds } from "@/store/admin-store";
 
 function DetailSkeleton() {
   return (
@@ -112,6 +114,7 @@ export function RequestDetail({ id }: { id: string }) {
   const allContribs = useContributionsStore((s) => s.contributions);
   const session = useAuthStore((s) => s.session);
   const blocked = useBlockedIds(session?.userId);
+  const suspendedIds = useSuspendedUserIds();
   const unblock = useSavedStore((s) => s.unblock);
   const history = useSwipeHistory(session?.userId);
   const swipe = useSwipeStore((s) => s.swipe);
@@ -151,7 +154,8 @@ export function RequestDetail({ id }: { id: string }) {
   const remaining = Math.max(0, request.amount - request.amountRaised);
   const swipeRecord = history.find((h) => h.requestId === request.id);
   const interested = swipeRecord?.direction === "right";
-  const canContribute = request.status === "active" && !request.flagged && !isOwner && remaining > 0;
+  const requesterSuspended = suspendedIds.has(request.userId);
+  const canContribute = request.status === "active" && !request.flagged && !requesterSuspended && !isOwner && remaining > 0;
   const cat = CATEGORY_MAP[request.category];
   const country = COUNTRY_MAP[request.country];
 
@@ -161,7 +165,9 @@ export function RequestDetail({ id }: { id: string }) {
       ? "This request isn't accepting simulated contributions."
       : request.flagged
         ? "This request is under moderator review."
-        : null;
+        : requesterSuspended
+          ? "This requester's account is suspended by a moderator."
+          : null;
 
   const toggleInterest = () => {
     if (!session) {
@@ -291,10 +297,19 @@ export function RequestDetail({ id }: { id: string }) {
             </div>
           </Card>
 
+          <BillBreakdown request={request} />
+
           <Card className="p-6 sm:p-8">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Recent supporters</h2>
-              <span className="text-xs text-muted-foreground">Simulated activity</span>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">Recent supporters</h2>
+                <p className="text-xs text-muted-foreground">
+                  {request.supporters} {request.supporters === 1 ? "supporter" : "supporters"} in total · simulated activity
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium tabular-nums">
+                <Users className="size-3.5" /> {request.supporters}
+              </span>
             </div>
             {supporters.length === 0 ? (
               <p className="text-sm text-muted-foreground">No simulated contributions yet. Be the first to show support.</p>

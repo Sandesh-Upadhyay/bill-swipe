@@ -27,15 +27,16 @@ import { ConfirmDialog, Sheet, SheetContent, SheetDescription, SheetTitle, Sheet
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/primitives";
 import { EmptyState } from "@/components/layout/page-parts";
 import { SafetyMenu } from "@/components/requests/safety-actions";
-import { StackedCard, SwipeCard, type ExitDirection } from "./swipe-card";
+import { ACTION_LOCK_MS, StackedCard, SwipeCard, type EnterFrom, type ExitDirection } from "./swipe-card";
 import { DiscoverFilters, EMPTY_FILTERS, activeFilterCount, type DiscoverFilterState } from "./discover-filters";
 import { useAuthStore } from "@/store/auth-store";
 import { isDiscoverable, useRequestsStore } from "@/store/requests-store";
 import { useSwipeHistory, useSwipeStore } from "@/store/swipe-store";
 import { useBlockedIds, useSavedIds, useSavedStore } from "@/store/saved-store";
-import { useAdminStore } from "@/store/admin-store";
+import { useAdminStore, useSuspendedUserIds } from "@/store/admin-store";
 import { usePreferencesStore } from "@/store/preferences-store";
 import { useNotificationsStore } from "@/store/notifications-store";
+import { t } from "@/lib/i18n/messages";
 
 function useDeck(filters: DiscoverFilterState, priorityId: string | null) {
   const session = useAuthStore((s) => s.session);
@@ -44,6 +45,7 @@ function useDeck(filters: DiscoverFilterState, priorityId: string | null) {
   const blocked = useBlockedIds(session?.userId);
   const allowUnverified = useAdminStore((s) => s.settings.allowUnverifiedInFeed);
   const disabledCategories = useAdminStore((s) => s.categories.filter((c) => !c.enabled).map((c) => c.id).join(","));
+  const suspended = useSuspendedUserIds();
 
   return React.useMemo(() => {
     const swiped = new Set(history.map((h) => h.requestId));
@@ -53,9 +55,11 @@ function useDeck(filters: DiscoverFilterState, priorityId: string | null) {
         isDiscoverable(r) &&
         r.userId !== session?.userId &&
         !blocked.includes(r.userId) &&
+        !suspended.has(r.userId) &&
         !disabledCategories.split(",").includes(r.category) &&
         (filters.categories.length === 0 || filters.categories.includes(r.category)) &&
         (filters.countries.length === 0 || filters.countries.includes(r.country)) &&
+        (filters.currencies.length === 0 || filters.currencies.includes(r.currency)) &&
         (!approvedOnly || r.verification === "demo_approved"),
     );
     const queue = matching
@@ -66,7 +70,7 @@ function useDeck(filters: DiscoverFilterState, priorityId: string | null) {
         return b.createdAt.localeCompare(a.createdAt);
       });
     return { queue, totalMatching: matching.length, allowUnverified };
-  }, [requests, history, blocked, filters, priorityId, session?.userId, allowUnverified, disabledCategories]);
+  }, [requests, history, blocked, suspended, filters, priorityId, session?.userId, allowUnverified, disabledCategories]);
 }
 
 function ControlButton({
@@ -130,6 +134,7 @@ export function DiscoverFeed() {
   const [filters, setFilters] = React.useState<DiscoverFilterState>(EMPTY_FILTERS);
   const [priorityId, setPriorityId] = React.useState<string | null>(null);
   const [exitDir, setExitDir] = React.useState<ExitDirection>("left");
+  const [enterFrom, setEnterFrom] = React.useState<EnterFrom>("stack");
   const [loading, setLoading] = React.useState(true);
   const [resetOpen, setResetOpen] = React.useState(false);
   const { queue, totalMatching, allowUnverified } = useDeck(filters, priorityId);
@@ -143,9 +148,18 @@ export function DiscoverFeed() {
     return () => clearTimeout(t);
   }, [filters]);
 
+  // Briefly lock the deck after each action so a fast double-tap can't respond to two cards at once.
+  const busyUntil = React.useRef(0);
+  const claimAction = React.useCallback(() => {
+    const now = Date.now();
+    if (now < busyUntil.current) return false;
+    busyUntil.current = now + ACTION_LOCK_MS;
+    return true;
+  }, []);
+
   const doSwipe = React.useCallback(
     (dir: SwipeDirection) => {
-      if (!top) return;
+      if (!top || !claimAction()) return;
       // Exit direction and card removal commit in the same render, so AnimatePresence uses the new direction.
       setExitDir(dir);
       {
@@ -155,6 +169,8 @@ export function DiscoverFeed() {
           return;
         }
         setPriorityId(null);
+        setEnterFrom("stack");
+        if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.(dir === "right" ? 12 : 6);
         if (dir === "right") {
           toast.success(`Interested in ${top.name}'s request`, {
             description: "Saved to your interested list. Swiping never charges you.",
@@ -171,7 +187,7 @@ export function DiscoverFeed() {
         }
       }
     },
-    [top, swipe, userId, router, interestedCount, pushNotification],
+    [top, claimAction, swipe, userId, router, interestedCount, pushNotification],
   );
 
   const openDetails = React.useCallback(() => {
@@ -181,14 +197,18 @@ export function DiscoverFeed() {
   }, [top, router]);
 
   const doUndo = React.useCallback(() => {
+    if (!claimAction()) return;
     const last = undo(userId);
     if (!last) {
       toast.info("Nothing to undo yet.");
       return;
     }
+    // The card flies back in from the side it left; the card it covers slides back into the stack.
+    setExitDir("stack");
+    setEnterFrom(last.direction);
     setPriorityId(last.requestId);
     toast(last.direction === "right" ? "Removed from interested" : "Brought the card back");
-  }, [undo, userId]);
+  }, [claimAction, undo, userId]);
 
   const doSave = React.useCallback(() => {
     if (!top) return;
@@ -238,7 +258,7 @@ export function DiscoverFeed() {
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Discover</h1>
             <p className="text-xs text-muted-foreground" aria-live="polite">
-              {loading ? "Finding requests…" : `${queue.length} of ${totalMatching} requests left`}
+              {loading ? t("swipe.loading") : t("swipe.remaining", { left: queue.length, total: totalMatching })}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -259,7 +279,8 @@ export function DiscoverFeed() {
           </div>
         </div>
 
-        <div className="relative h-[min(600px,calc(100dvh-19rem))] min-h-[440px] w-full max-w-[420px]">
+        {/* Height leaves room for the action buttons above the mobile tab bar; capped on tall screens. */}
+        <div className="relative h-[clamp(340px,calc(100dvh-24rem),600px)] w-full max-w-[420px] lg:h-[clamp(460px,calc(100dvh-19rem),640px)]">
           {loading ? (
             <Skeleton className="absolute inset-0 rounded-[2rem]" aria-label="Loading requests" />
           ) : top ? (
@@ -271,7 +292,14 @@ export function DiscoverFeed() {
                   <StackedCard key={r.id} request={r} depth={queue.indexOf(r)} />
                 ))}
               <AnimatePresence custom={exitDir} initial={false}>
-                <SwipeCard key={top.id} request={top} onSwipe={doSwipe} onOpen={openDetails} reducedMotion={reducedMotion} />
+                <SwipeCard
+                  key={top.id}
+                  request={top}
+                  onSwipe={doSwipe}
+                  onOpen={openDetails}
+                  reducedMotion={reducedMotion}
+                  enterFrom={top.id === priorityId ? enterFrom : "stack"}
+                />
               </AnimatePresence>
             </>
           ) : (
@@ -307,17 +335,17 @@ export function DiscoverFeed() {
 
         {/* Controls */}
         <div className="mt-6 flex items-center justify-center gap-3 sm:gap-4" role="toolbar" aria-label="Swipe actions">
-          <ControlButton label="Undo last swipe" shortcut="Z" onClick={doUndo} disabled={history.length === 0} size="sm">
+          <ControlButton label={t("swipe.undo")} shortcut="Z" onClick={doUndo} disabled={history.length === 0} size="sm">
             <RotateCcw className="text-amber-500" />
           </ControlButton>
-          <ControlButton label="Skip" shortcut="←" onClick={() => doSwipe("left")} disabled={!top || loading} size="lg">
+          <ControlButton label={t("swipe.skip")} shortcut="←" onClick={() => doSwipe("left")} disabled={!top || loading} size="lg">
             <X className="text-rose-500" />
           </ControlButton>
-          <ControlButton label="View details" shortcut="↑" onClick={openDetails} disabled={!top || loading} size="sm">
+          <ControlButton label={t("swipe.details")} shortcut="↑" onClick={openDetails} disabled={!top || loading} size="sm">
             <Info className="text-sky-500" />
           </ControlButton>
           <ControlButton
-            label="Interested in helping"
+            label={t("swipe.interested")}
             shortcut="→"
             onClick={() => doSwipe("right")}
             disabled={!top || loading}
@@ -326,12 +354,12 @@ export function DiscoverFeed() {
           >
             <Heart className="fill-current" />
           </ControlButton>
-          <ControlButton label={isSaved ? "Unsave" : "Save for later"} shortcut="S" onClick={doSave} disabled={!top || loading} size="sm">
+          <ControlButton label={isSaved ? t("swipe.unsave") : t("swipe.save")} shortcut="S" onClick={doSave} disabled={!top || loading} size="sm">
             {isSaved ? <BookmarkCheck className="text-primary" /> : <Bookmark className="text-primary" />}
           </ControlButton>
         </div>
         <p className="mt-4 max-w-sm text-center text-xs text-muted-foreground">
-          Swiping right only shows interest. It never charges you or sends money.
+          {t("swipe.disclaimer")}
         </p>
       </section>
 
