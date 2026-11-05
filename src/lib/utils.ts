@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { CurrencyCode } from "./types";
+import { currencyLocale, generalLocale } from "./i18n/locale";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -21,13 +22,24 @@ export function toUsd(amount: number, currency: CurrencyCode) {
   return amount * DEMO_USD_RATES[currency];
 }
 
+// Intl formatters are relatively expensive to build, so reuse them per locale + options.
+const numberFormats = new Map<string, Intl.NumberFormat>();
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+
+function numberFormat(locale: string, options: Intl.NumberFormatOptions) {
+  const key = locale + JSON.stringify(options);
+  let f = numberFormats.get(key);
+  if (!f) numberFormats.set(key, (f = new Intl.NumberFormat(locale, options)));
+  return f;
+}
+
+/** Formats an amount in its own currency, following the user's regional format (see lib/i18n/locale). */
 export function formatCurrency(
   amount: number,
   currency: CurrencyCode,
   opts: { compact?: boolean; decimals?: boolean } = {},
 ) {
-  const locale = currency === "INR" ? "en-IN" : "en-US";
-  return new Intl.NumberFormat(locale, {
+  return numberFormat(currencyLocale(currency), {
     style: "currency",
     currency,
     notation: opts.compact ? "compact" : "standard",
@@ -37,7 +49,7 @@ export function formatCurrency(
 }
 
 export function formatNumber(n: number, compact = false) {
-  return new Intl.NumberFormat("en-US", { notation: compact ? "compact" : "standard", maximumFractionDigits: 1 }).format(n);
+  return numberFormat(generalLocale(), { notation: compact ? "compact" : "standard", maximumFractionDigits: 1 }).format(n);
 }
 
 export function formatDate(
@@ -46,7 +58,11 @@ export function formatDate(
 ) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat("en-GB", opts).format(d);
+  const locale = generalLocale();
+  const key = locale + JSON.stringify(opts);
+  let f = dateFormats.get(key);
+  if (!f) dateFormats.set(key, (f = new Intl.DateTimeFormat(locale, opts)));
+  return f.format(d);
 }
 
 export function daysUntil(iso: string) {

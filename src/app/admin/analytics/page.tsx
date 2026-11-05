@@ -23,13 +23,15 @@ import { useContributionsStore } from "@/store/contributions-store";
 import { CATEGORIES, COUNTRIES, STATUS_META } from "@/lib/constants";
 import { formatCurrency, formatNumber, percent, toUsd } from "@/lib/utils";
 import { CHART_COLORS, ChartCard, ChartTooltip, axisProps, useContributionSeries, usdFormatter } from "@/components/admin/charts";
+import { RangeToggle } from "@/components/dashboard/charts";
 
 const tooltipCursor = { fill: "var(--muted)", opacity: 0.5 };
 
 export default function AdminAnalyticsPage() {
   const requests = useRequestsStore((s) => s.requests);
   const contributions = useContributionsStore((s) => s.contributions);
-  const series = useContributionSeries(contributions, 30);
+  const [days, setDays] = React.useState(30);
+  const series = useContributionSeries(contributions, days);
 
   const byCategory = React.useMemo(
     () =>
@@ -85,7 +87,7 @@ export default function AdminAnalyticsPage() {
     requests.filter((r) => r.verification === "demo_approved").length,
     requests.filter((r) => r.verification === "demo_approved" || r.verification === "rejected").length,
   );
-  const last30 = series.reduce((s, b) => s + b.usd, 0);
+  const periodTotal = series.reduce((s, b) => s + b.usd, 0);
 
   return (
     <div className="mx-auto grid max-w-7xl gap-6">
@@ -98,11 +100,32 @@ export default function AdminAnalyticsPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Requested (live)" value={formatCurrency(requestedUsd, "USD", { compact: true })} hint={`${live.length} active or completed`} icon={ListChecks} />
         <StatCard label="Raised (simulated)" value={formatCurrency(raisedUsd, "USD", { compact: true })} hint={`${percent(raisedUsd, requestedUsd)}% of requested`} icon={HandCoins} tone="primary" />
-        <StatCard label="Last 30 days (simulated)" value={formatCurrency(last30, "USD", { compact: true })} hint="Recorded contributions" icon={Gauge} tone="primary" />
+        <StatCard
+          label={`Last ${days} days (simulated)`}
+          value={formatCurrency(periodTotal, "USD", { compact: true })}
+          hint="Recorded contributions · ≈ USD at demo rates"
+          icon={Gauge}
+          tone="primary"
+        />
         <StatCard label="Demo approval rate" value={`${approvalRate}%`} hint="Demo-approved vs rejected" icon={Percent} />
       </div>
 
-      <ChartCard title="Simulated contributions over time" description="Daily total, last 30 days (USD equivalent)">
+      <ChartCard
+        title="Simulated contributions over time"
+        description={`Daily total, last ${days} days · ≈ USD at fixed demo rates`}
+        action={
+          <RangeToggle
+            label="Time range"
+            value={days}
+            onChange={setDays}
+            options={[
+              { value: 7, label: "7D" },
+              { value: 30, label: "30D" },
+              { value: 90, label: "90D" },
+            ]}
+          />
+        }
+      >
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={series} margin={{ left: -8, right: 8, top: 8 }}>
@@ -113,7 +136,7 @@ export default function AdminAnalyticsPage() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-              <XAxis dataKey="label" {...axisProps} interval={4} />
+              <XAxis dataKey="label" {...axisProps} interval="preserveStartEnd" minTickGap={24} />
               <YAxis {...axisProps} width={56} tickFormatter={(v: number) => `$${formatNumber(v, true)}`} />
               <Tooltip content={<ChartTooltip valueFormatter={usdFormatter} />} />
               <Area type="monotone" dataKey="usd" name="Simulated (USD)" stroke="var(--chart-1)" strokeWidth={2} fill="url(#an-area)" />
@@ -123,7 +146,7 @@ export default function AdminAnalyticsPage() {
       </ChartCard>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <ChartCard title="Requests by category" description="Requested vs raised (simulated), USD equivalent">
+        <ChartCard title="Requests by category" description="Requested vs raised (simulated) · ≈ USD at fixed demo rates">
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={byCategory} margin={{ left: -8, right: 8, top: 8 }}>

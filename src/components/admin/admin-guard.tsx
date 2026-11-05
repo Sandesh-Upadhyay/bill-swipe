@@ -65,7 +65,11 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
             <Button
               size="lg"
               onClick={() => {
-                login(DEMO_ACCOUNTS.admin);
+                const res = login(DEMO_ACCOUNTS.admin);
+                if (!res.ok) {
+                  toast.error(res.error);
+                  return;
+                }
                 seedWelcome(DEMO_ACCOUNTS.admin.userId, DEMO_ACCOUNTS.admin.name);
                 toast.success("Signed in as the demo admin");
               }}

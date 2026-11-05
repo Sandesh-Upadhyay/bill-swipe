@@ -7,8 +7,18 @@ import { RequireAuth } from "@/components/layout/require-auth";
 import { EmptyState, PageContainer, PageHeader, SimulatedNote, StatCard } from "@/components/layout/page-parts";
 import { Button } from "@/components/ui/button";
 import { RequestCard } from "@/components/requests/request-card";
-import { ChartCard, DonutChart, SimpleBarChart, TrendAreaChart, type Datum } from "@/components/dashboard/charts";
+import {
+  ChartCard,
+  DonutChart,
+  RangeToggle,
+  SimpleBarChart,
+  TrendAreaChart,
+  WEEK_RANGES,
+  weeklySeries,
+  type Datum,
+} from "@/components/dashboard/charts";
 import { CommitmentsList, ContributionHistory } from "@/components/dashboard/donor-sections";
+import { ActivityTimeline, type TimelineEntry } from "@/components/dashboard/timeline";
 import { CATEGORY_MAP } from "@/lib/constants";
 import { formatCurrency, formatDate, toUsd } from "@/lib/utils";
 import type { BillRequest } from "@/lib/types";
@@ -17,8 +27,6 @@ import { useContributionsStore } from "@/store/contributions-store";
 import { useRequestsStore } from "@/store/requests-store";
 import { useSavedIds } from "@/store/saved-store";
 import { useSwipeHistory } from "@/store/swipe-store";
-
-const WEEK = 7 * 86_400_000;
 
 function DonorDashboard() {
   const session = useAuthStore((s) => s.session)!;
@@ -42,19 +50,40 @@ function DonorDashboard() {
     .reverse();
   const saved = savedIds.map((id) => requestsById.get(id)).filter((r): r is BillRequest => !!r);
 
-  const trend: Datum[] = React.useMemo(() => {
-    const now = Date.now();
-    const buckets = Array.from({ length: 8 }, (_, i) => {
-      const start = now - (8 - i) * WEEK;
-      return { start, label: formatDate(new Date(start + WEEK).toISOString(), { day: "numeric", month: "short" }), value: 0 };
+  const [weeks, setWeeks] = React.useState(8);
+  const trend: Datum[] = React.useMemo(
+    () =>
+      weeklySeries(
+        completed.map((c) => ({ at: c.createdAt, value: toUsd(c.amount, c.currency) })),
+        weeks,
+        (d) => formatDate(d.toISOString(), { day: "numeric", month: "short" }),
+      ),
+    [completed, weeks],
+  );
+  const trendHasData = trend.some((d) => d.value > 0);
+
+  const timeline: TimelineEntry[] = React.useMemo(() => {
+    const title = (id: string) => requestsById.get(id)?.title ?? "a request";
+    const fromContribs: TimelineEntry[] = mine.map((c) => {
+      const amount = <strong className="font-medium">{formatCurrency(c.amount, c.currency)}</strong>;
+      const target = <>&ldquo;{title(c.requestId)}&rdquo;</>;
+      const base = { id: c.id, createdAt: c.createdAt, href: `/requests/${c.requestId}` };
+      if (c.kind === "simulated") return { ...base, kind: "contribution", text: <>You made a simulated contribution of {amount} to {target}</> };
+      if (c.status === "fulfilled") return { ...base, kind: "fulfilled", text: <>You fulfilled your {amount} commitment to {target} (simulated)</> };
+      if (c.status === "cancelled") return { ...base, kind: "cancelled", text: <>You cancelled a {amount} commitment to {target}</> };
+      return { ...base, kind: "commitment", text: <>You committed {amount} to {target} for later</> };
     });
-    for (const c of completed) {
-      const t = new Date(c.createdAt).getTime();
-      const b = buckets.find((x) => t > x.start && t <= x.start + WEEK);
-      if (b) b.value += toUsd(c.amount, c.currency);
-    }
-    return buckets.map((b) => ({ label: b.label, value: Math.round(b.value) }));
-  }, [completed]);
+    const fromSwipes: TimelineEntry[] = swipes
+      .filter((s) => s.direction === "right")
+      .map((s) => ({
+        id: `swipe_${s.requestId}`,
+        kind: "interest",
+        createdAt: s.at,
+        href: `/requests/${s.requestId}`,
+        text: <>You showed interest in &ldquo;{title(s.requestId)}&rdquo;</>,
+      }));
+    return [...fromContribs, ...fromSwipes];
+  }, [mine, swipes, requestsById]);
 
   const byCategory: Datum[] = React.useMemo(() => {
     const m = new Map<string, number>();
@@ -113,9 +142,11 @@ function DonorDashboard() {
         <div className="grid gap-4 lg:grid-cols-3">
           <ChartCard
             title="Contributions over time"
-            description="Last 8 weeks · ≈ USD, demo rates"
+            description={`${weeks === 26 ? "Last 6 months" : `Last ${weeks} weeks`} · ≈ USD at fixed demo rates`}
             className="lg:col-span-2"
-            empty={completed.length === 0}
+            empty={!trendHasData}
+            emptyText={completed.length === 0 ? "No simulated contributions yet" : "No simulated contributions in this period. Try a longer range."}
+            actions={<RangeToggle label="Time range" value={weeks} options={WEEK_RANGES} onChange={setWeeks} />}
           >
             <TrendAreaChart data={trend} />
           </ChartCard>
@@ -128,9 +159,17 @@ function DonorDashboard() {
         </ChartCard>
       </section>
 
-      <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-6">
-        <CommitmentsList commitments={openCommitments} requestsById={requestsById} userId={session.userId} />
-        <ContributionHistory contributions={mine} requestsById={requestsById} />
+      <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-6">
+          <CommitmentsList commitments={openCommitments} requestsById={requestsById} userId={session.userId} />
+          <ContributionHistory contributions={mine} requestsById={requestsById} />
+        </div>
+        <ActivityTimeline
+          className="xl:sticky xl:top-24 xl:self-start"
+          description="Your interest, pledges and simulated contributions."
+          entries={timeline}
+          emptyText="Swipe right on a request or simulate a contribution to start your timeline."
+        />
       </div>
 
       <section aria-labelledby="interested-heading" className="mt-10">

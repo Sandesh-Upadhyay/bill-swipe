@@ -12,15 +12,16 @@ import { NotificationsMenu } from "./notifications-menu";
 import { useAuthStore } from "@/store/auth-store";
 import { useHydrated } from "@/store/hydration-store";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n/messages";
 
 function useNav() {
   const session = useAuthStore((s) => s.session);
   return [
-    { href: "/discover", label: "Discover", icon: Sparkles },
-    { href: "/explore", label: "Explore", icon: Compass },
-    { href: "/submit", label: "Submit bill", icon: PlusCircle },
-    { href: "/saved", label: "Saved", icon: Bookmark },
-    { href: dashboardPath(session?.role), label: "Dashboard", icon: LayoutDashboard },
+    { href: "/discover", label: t("nav.discover"), icon: Sparkles },
+    { href: "/explore", label: t("nav.explore"), icon: Compass },
+    { href: "/submit", label: t("nav.submit"), icon: PlusCircle },
+    { href: "/saved", label: t("nav.saved"), icon: Bookmark },
+    { href: dashboardPath(session?.role), label: t("nav.dashboard"), icon: LayoutDashboard },
   ];
 }
 
@@ -78,7 +79,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/92 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       >
         <ul className="mx-auto grid max-w-md grid-cols-5">
-          {[nav[0], nav[1], nav[2], nav[4], { href: "/profile", label: "Profile", icon: UserRound }].map((n) => (
+          {[nav[0], nav[1], nav[2], nav[4], { href: "/profile", label: t("nav.profile"), icon: UserRound }].map((n) => (
             <li key={n.label}>
               <Link
                 href={n.href}
@@ -88,7 +89,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <n.icon className={cn("size-5", n.href === "/submit" && "size-6")} />
-                {n.label === "Submit bill" ? "Submit" : n.label}
+                {n.href === "/submit" ? t("nav.submitShort") : n.label}
               </Link>
             </li>
           ))}

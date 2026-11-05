@@ -3,17 +3,17 @@
 import * as React from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Activity, CalendarClock, Eye, HandHeart, MessageSquareWarning, Pencil, Undo2, Users } from "lucide-react";
+import { CalendarClock, Eye, MessageSquareWarning, Pencil, Undo2, Users } from "lucide-react";
 import type { ActivityItem, BillRequest, Contribution } from "@/lib/types";
-import { cn, dueLabel, formatCurrency, timeAgo } from "@/lib/utils";
+import { dueLabel, formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/basic";
 import { ConfirmDialog } from "@/components/ui/overlays";
 import { DemoAvatar } from "@/components/brand/demo-avatar";
-import { EmptyState } from "@/components/layout/page-parts";
 import { CategoryBadge, StatusBadge, VerificationBadge } from "@/components/requests/badges";
 import { FundingProgress } from "@/components/requests/money";
 import { EditRequestDialog } from "./edit-request-dialog";
+import { ActivityTimeline, type TimelineEntry } from "./timeline";
+import { StatusTracker } from "./status-tracker";
 import { useRequestsStore } from "@/store/requests-store";
 
 export function OwnRequestCard({ request, userId }: { request: BillRequest; userId: string }) {
@@ -49,6 +49,8 @@ export function OwnRequestCard({ request, userId }: { request: BillRequest; user
       {request.status === "rejected" && request.adminNote && (
         <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-800 dark:text-red-200">{request.adminNote}</p>
       )}
+
+      <StatusTracker request={request} />
 
       <FundingProgress raised={request.amountRaised} goal={request.amount} currency={request.currency} />
 
@@ -99,8 +101,6 @@ export function OwnRequestCard({ request, userId }: { request: BillRequest; user
   );
 }
 
-type FeedEntry = { id: string; text: string; createdAt: string; kind: ActivityItem["kind"]; href?: string };
-
 export function ActivityFeed({
   activity,
   contributions,
@@ -110,57 +110,32 @@ export function ActivityFeed({
   contributions: Contribution[];
   requestsById: Map<string, BillRequest>;
 }) {
-  const entries: FeedEntry[] = React.useMemo(() => {
-    const fromActivity: FeedEntry[] = activity
+  const entries: TimelineEntry[] = React.useMemo(() => {
+    const fromActivity: TimelineEntry[] = activity
       .filter((a) => a.kind !== "contribution")
       .map((a) => ({ id: a.id, text: a.text, createdAt: a.createdAt, kind: a.kind, href: a.requestId ? `/requests/${a.requestId}` : undefined }));
-    const fromContribs: FeedEntry[] = contributions
+    const fromContribs: TimelineEntry[] = contributions
       .filter((c) => c.status === "recorded" || c.status === "fulfilled")
       .map((c) => ({
         id: c.id,
         kind: "contribution",
         createdAt: c.createdAt,
         href: `/requests/${c.requestId}`,
-        text: `Simulated contribution from ${c.donorName} · ${formatCurrency(c.amount, c.currency)} on “${requestsById.get(c.requestId)?.title ?? "your request"}”`,
+        text: (
+          <>
+            <strong className="font-medium">{c.donorName.split(" ")[0]}</strong> made a simulated contribution of{" "}
+            <strong className="font-medium">{formatCurrency(c.amount, c.currency)}</strong> to &ldquo;{requestsById.get(c.requestId)?.title ?? "your request"}&rdquo;
+          </>
+        ),
       }));
-    return [...fromActivity, ...fromContribs].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 12);
+    return [...fromActivity, ...fromContribs];
   }, [activity, contributions, requestsById]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Activity className="size-4 text-primary" /> Recent activity
-        </CardTitle>
-        <CardDescription>Updates on your requests. Contributions shown are simulated.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {entries.length === 0 ? (
-          <EmptyState icon={Activity} title="No activity yet" description="Submissions, reviews and simulated contributions will show up here." className="py-10" />
-        ) : (
-          <ol className="relative grid gap-5 border-l pl-5">
-            {entries.map((e) => (
-              <li key={e.id} className="relative">
-                <span
-                  className={cn(
-                    "absolute -left-[27px] top-0.5 grid size-3.5 place-items-center rounded-full ring-4 ring-card",
-                    e.kind === "contribution" ? "bg-primary" : e.kind === "withdrawn" ? "bg-muted-foreground" : "bg-amber-500",
-                  )}
-                />
-                {e.href ? (
-                  <Link href={e.href} className="text-sm hover:text-primary">
-                    {e.kind === "contribution" && <HandHeart className="mr-1.5 inline size-3.5 text-primary" />}
-                    {e.text}
-                  </Link>
-                ) : (
-                  <p className="text-sm">{e.text}</p>
-                )}
-                <p className="text-xs text-muted-foreground">{timeAgo(e.createdAt)}</p>
-              </li>
-            ))}
-          </ol>
-        )}
-      </CardContent>
-    </Card>
+    <ActivityTimeline
+      description="Updates on your requests. Contributions shown are simulated."
+      entries={entries}
+      emptyText="Submissions, reviews and simulated contributions will show up here."
+    />
   );
 }

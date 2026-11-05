@@ -34,6 +34,7 @@ export default function AdminReportsPage() {
   const requests = useRequestsStore((s) => s.requests);
   const setReportStatus = useRequestsStore((s) => s.setReportStatus);
   const users = useAdminStore((s) => s.users);
+  const logModeration = useAdminStore((s) => s.logModeration);
   const mod = useModeration();
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState<"all" | RequestReport["status"]>("open");
@@ -177,6 +178,11 @@ export default function AdminReportsPage() {
             if (pendingRequest) mod.flag(pendingRequest);
           } else {
             setReportStatus(pending.report.id, pending.kind);
+            logModeration({
+              kind: "report",
+              requestId: pending.report.requestId,
+              text: `${pending.kind === "resolved" ? "Resolved" : "Dismissed"} a “${pending.report.reason}” report on “${pendingRequest?.title ?? "a request"}”`,
+            });
             toast.success(pending.kind === "resolved" ? "Report resolved" : "Report dismissed");
           }
           setPending(null);

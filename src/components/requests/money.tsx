@@ -25,7 +25,10 @@ export function Money({
     return (
       <span className={className}>
         {primary}
-        <span className="ml-1 text-[0.8em] font-normal opacity-60">≈ {formatCurrency(toUsd(amount, currency), "USD", { compact })}</span>
+        <span className="ml-1 text-[0.8em] font-normal opacity-60" title="Approximate, at a fixed demo rate. Not a live exchange rate.">
+          ≈ {formatCurrency(toUsd(amount, currency), "USD", { compact })}
+          <span className="sr-only"> approximately, at a fixed demo rate, not a live exchange rate</span>
+        </span>
       </span>
     );
   }

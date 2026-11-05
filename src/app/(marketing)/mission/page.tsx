@@ -15,7 +15,7 @@ const VALUES = [
 ];
 
 const ROADMAP = [
-  { phase: "Now", title: "Prototype v1.0", body: "Interactive experience with fictional data and simulated contributions. Built to test the experience with investors, partners and early users." },
+  { phase: "Now", title: "Prototype v1.1", body: "Interactive experience with fictional data and simulated contributions. Built to test the experience with investors, partners and early users." },
   { phase: "Next", title: "Verified pilot", body: "Real identity checks, document verification and biller partnerships in a limited pilot market." },
   { phase: "Later", title: "Direct-to-biller payments", body: "Licensed payment partners paying utilities, landlords, hospitals and schools directly." },
 ];

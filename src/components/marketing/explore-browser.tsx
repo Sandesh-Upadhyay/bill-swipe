@@ -16,6 +16,7 @@ import { useHydrated } from "@/store/hydration-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useBlockedIds } from "@/store/saved-store";
 import { usePreferencesStore } from "@/store/preferences-store";
+import { useSuspendedUserIds } from "@/store/admin-store";
 
 type Sort = "newest" | "funded" | "due";
 
@@ -24,6 +25,7 @@ export function ExploreBrowser() {
   const requests = useRequestsStore((s) => s.requests);
   const session = useAuthStore((s) => s.session);
   const blocked = useBlockedIds(session?.userId);
+  const suspended = useSuspendedUserIds();
   const currencyDisplay = usePreferencesStore((s) => s.currencyDisplay);
   const setCurrencyDisplay = usePreferencesStore((s) => s.setCurrencyDisplay);
 
@@ -37,7 +39,7 @@ export function ExploreBrowser() {
     const q = query.trim().toLowerCase();
     const list = requests.filter((r) => {
       if (!(isDiscoverable(r) || (includeCompleted && r.status === "completed"))) return false;
-      if (blocked.includes(r.userId)) return false;
+      if (blocked.includes(r.userId) || suspended.has(r.userId)) return false;
       if (category !== "all" && r.category !== category) return false;
       if (country !== "all" && r.country !== country) return false;
       if (q && ![r.title, r.summary, r.name, r.city].some((f) => f.toLowerCase().includes(q))) return false;
@@ -48,7 +50,7 @@ export function ExploreBrowser() {
       if (sort === "due") return a.dueDate.localeCompare(b.dueDate);
       return b.createdAt.localeCompare(a.createdAt);
     });
-  }, [requests, blocked, category, country, query, sort, includeCompleted]);
+  }, [requests, blocked, suspended, category, country, query, sort, includeCompleted]);
 
   const filtersActive = query || category !== "all" || country !== "all" || !includeCompleted;
   const resetFilters = () => {

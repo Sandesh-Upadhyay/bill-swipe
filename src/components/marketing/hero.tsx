@@ -69,7 +69,7 @@ export function Hero() {
             </span>
           </motion.div>
           <motion.p {...fade(0.4)} className="mt-6 max-w-lg text-xs text-white/45">
-            Prototype v1.0 — every person and request shown is fictional, and every contribution is simulated. No money moves.
+            Prototype v1.1 — every person and request shown is fictional, and every contribution is simulated. No money moves.
           </motion.p>
         </div>
         <motion.div

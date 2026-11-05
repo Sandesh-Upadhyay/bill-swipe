@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     template: "%s · BillSwipe",
   },
   description:
-    "BillSwipe connects people with genuine outstanding bills to people who want to help, through a simple swipe experience. Prototype v1.0 with fictional demo data.",
+    "BillSwipe connects people with genuine outstanding bills to people who want to help, through a simple swipe experience. Prototype v1.1 with fictional demo data.",
   applicationName: "BillSwipe",
 };
 

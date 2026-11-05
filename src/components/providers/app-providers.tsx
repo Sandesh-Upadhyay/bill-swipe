@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/primitives";
 import { persistedStores } from "@/store";
 import { useHydrationStore } from "@/store/hydration-store";
 import { usePreferencesStore } from "@/store/preferences-store";
+import { documentLang, setFormatLocale } from "@/lib/i18n/locale";
 
 /** Rehydrates every persisted Zustand store on the client, then flags the app as hydrated. */
 function StoreHydrator() {
@@ -38,6 +39,22 @@ function ThemeSync() {
   return null;
 }
 
+/**
+ * Applies the regional-format preference before children render. Formatting helpers read the
+ * locale from module state, so the subtree remounts (via `key`) when it changes. Until the stores
+ * hydrate, "auto" is used, matching the server render.
+ */
+function LocaleBoundary({ children }: { children: React.ReactNode }) {
+  const hydrated = useHydrationStore((s) => s.hydrated);
+  const preferred = usePreferencesStore((s) => s.locale);
+  const locale = hydrated ? preferred : "auto";
+  setFormatLocale(locale);
+  React.useEffect(() => {
+    document.documentElement.lang = documentLang();
+  }, [locale]);
+  return <React.Fragment key={locale}>{children}</React.Fragment>;
+}
+
 function ThemedToaster() {
   const { resolvedTheme } = useTheme();
   return (
@@ -57,7 +74,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       <TooltipProvider>
         <StoreHydrator />
         <ThemeSync />
-        {children}
+        <LocaleBoundary>{children}</LocaleBoundary>
         <ThemedToaster />
       </TooltipProvider>
     </ThemeProvider>

@@ -9,6 +9,7 @@ import { isDiscoverable, useRequestsStore } from "@/store/requests-store";
 import { useHydrated } from "@/store/hydration-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useBlockedIds } from "@/store/saved-store";
+import { useSuspendedUserIds } from "@/store/admin-store";
 import { percent } from "@/lib/utils";
 import { SectionHeading, Reveal } from "./reveal";
 
@@ -17,14 +18,15 @@ export function FeaturedRequests() {
   const requests = useRequestsStore((s) => s.requests);
   const session = useAuthStore((s) => s.session);
   const blocked = useBlockedIds(session?.userId);
+  const suspended = useSuspendedUserIds();
 
   const featured = useMemo(
     () =>
       requests
-        .filter((r) => isDiscoverable(r) && r.verification === "demo_approved" && !blocked.includes(r.userId))
+        .filter((r) => isDiscoverable(r) && r.verification === "demo_approved" && !blocked.includes(r.userId) && !suspended.has(r.userId))
         .sort((a, b) => percent(b.amountRaised, b.amount) - percent(a.amountRaised, a.amount))
         .slice(0, 6),
-    [requests, blocked],
+    [requests, blocked, suspended],
   );
 
   return (

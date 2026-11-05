@@ -8,8 +8,17 @@ import { EmptyState, PageContainer, PageHeader, SimulatedNote, StatCard } from "
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/primitives";
 import { ActivityFeed, OwnRequestCard } from "@/components/dashboard/requester-sections";
+import {
+  ChartCard,
+  FundingByRequestChart,
+  RangeToggle,
+  TrendAreaChart,
+  WEEK_RANGES,
+  weeklySeries,
+  type FundingDatum,
+} from "@/components/dashboard/charts";
 import type { BillRequest, CurrencyCode } from "@/lib/types";
-import { formatCurrency, toUsd } from "@/lib/utils";
+import { formatCurrency, formatDate, percent, toUsd } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 import { useContributionsStore } from "@/store/contributions-store";
 import { useRequestsStore } from "@/store/requests-store";
@@ -59,6 +68,25 @@ function RequesterDashboard() {
 
   const count = (fn: (r: BillRequest) => boolean) => mine.filter(fn).length;
 
+  const [weeks, setWeeks] = React.useState(8);
+  const received = React.useMemo(() => myContribs.filter((c) => c.status === "recorded" || c.status === "fulfilled"), [myContribs]);
+  const supportTrend = React.useMemo(
+    () =>
+      weeklySeries(
+        received.map((c) => ({ at: c.createdAt, value: toUsd(c.amount, c.currency) })),
+        weeks,
+        (d) => formatDate(d.toISOString(), { day: "numeric", month: "short" }),
+      ),
+    [received, weeks],
+  );
+  const funding: FundingDatum[] = React.useMemo(
+    () =>
+      counted
+        .filter((r) => r.status !== "pending_review")
+        .map((r) => ({ label: r.title, pct: percent(r.amountRaised, r.amount), raised: r.amountRaised, goal: r.amount, currency: r.currency })),
+    [counted],
+  );
+
   return (
     <PageContainer>
       <PageHeader
@@ -102,6 +130,33 @@ function RequesterDashboard() {
         <StatCard label="Pending review" value={count(TABS[1].match)} hint="Including requests needing more info" icon={Hourglass} tone="warning" />
         <StatCard label="Completed" value={count(TABS[2].match)} hint="Goal reached (simulated)" icon={CheckCircle2} />
       </div>
+
+      {mine.length > 0 && (
+        <section aria-labelledby="progress-heading" className="mt-10 grid gap-4">
+          <h2 id="progress-heading" className="text-lg font-semibold tracking-tight">
+            Progress
+          </h2>
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
+            <ChartCard
+              title="Funding by request"
+              description="Share of each goal reached · simulated, in each request's own currency"
+              empty={funding.length === 0}
+              emptyText="Funding progress appears once a request is approved."
+            >
+              <FundingByRequestChart data={funding} />
+            </ChartCard>
+            <ChartCard
+              title="Simulated support received"
+              description={`${weeks === 26 ? "Last 6 months" : `Last ${weeks} weeks`} · ≈ USD at fixed demo rates`}
+              empty={!supportTrend.some((d) => d.value > 0)}
+              emptyText={received.length === 0 ? "No simulated contributions yet." : "No simulated contributions in this period. Try a longer range."}
+              actions={<RangeToggle label="Time range" value={weeks} options={WEEK_RANGES} onChange={setWeeks} />}
+            >
+              <TrendAreaChart data={supportTrend} label="Simulated support received over time" />
+            </ChartCard>
+          </div>
+        </section>
+      )}
 
       <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <section aria-labelledby="my-requests">

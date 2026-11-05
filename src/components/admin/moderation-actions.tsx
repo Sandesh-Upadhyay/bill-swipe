@@ -18,6 +18,7 @@ import { FieldError, Textarea } from "@/components/ui/basic";
 import { Label } from "@/components/ui/primitives";
 import { useRequestsStore } from "@/store/requests-store";
 import { useNotificationsStore } from "@/store/notifications-store";
+import { useAdminStore } from "@/store/admin-store";
 import { cn } from "@/lib/utils";
 
 type NoteAction = "reject" | "info";
@@ -28,12 +29,14 @@ export function useModeration() {
   const setVerification = useRequestsStore((s) => s.setVerification);
   const toggleFlag = useRequestsStore((s) => s.toggleFlag);
   const push = useNotificationsStore((s) => s.push);
+  const log = useAdminStore((s) => s.logModeration);
 
   return React.useMemo(
     () => ({
       approve: (r: BillRequest) => {
         setStatus(r.id, "active");
         setVerification(r.id, "demo_approved");
+        log({ kind: "approved", requestId: r.id, userId: r.userId, text: `Demo-approved “${r.title}” by ${r.name}` });
         push(r.userId, {
           title: "Your request is live (demo)",
           body: `“${r.title}” was demo-approved and is now visible in Discover.`,
@@ -45,21 +48,24 @@ export function useModeration() {
       reject: (r: BillRequest, note: string) => {
         setStatus(r.id, "rejected", note);
         setVerification(r.id, "rejected");
+        log({ kind: "rejected", requestId: r.id, userId: r.userId, text: `Rejected “${r.title}”. Reason: ${note}` });
         push(r.userId, { title: "Request not approved (demo)", body: `“${r.title}”: ${note}`, href: `/requests/${r.id}`, tone: "warning" });
         toast.success(`Rejected “${r.title}”`);
       },
       requestInfo: (r: BillRequest, note: string) => {
         setStatus(r.id, "needs_info", note);
         setVerification(r.id, "pending");
+        log({ kind: "info", requestId: r.id, userId: r.userId, text: `Asked for more information on “${r.title}”: ${note}` });
         push(r.userId, { title: "More information requested", body: `“${r.title}”: ${note}`, href: "/dashboard/requester", tone: "warning" });
         toast.success("Requested more information from the requester");
       },
       flag: (r: BillRequest) => {
         toggleFlag(r.id);
+        log({ kind: "flag", requestId: r.id, userId: r.userId, text: `${r.flagged ? "Removed the flag from" : "Flagged"} “${r.title}”` });
         toast.success(r.flagged ? `Removed flag from “${r.title}”` : `Flagged “${r.title}” — hidden from Discover`);
       },
     }),
-    [setStatus, setVerification, toggleFlag, push],
+    [setStatus, setVerification, toggleFlag, push, log],
   );
 }
 

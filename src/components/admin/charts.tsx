@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { Contribution } from "@/lib/types";
-import { formatCurrency, toUsd } from "@/lib/utils";
+import { formatCurrency, formatDate, toUsd } from "@/lib/utils";
 
 export const CHART_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
@@ -56,7 +56,7 @@ export function useContributionSeries(contributions: Contribution[], days = 30) 
     const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - (days - 1) * 86_400_000;
     const buckets = Array.from({ length: days }, (_, i) => {
       const d = new Date(start + i * 86_400_000);
-      return { key: d.toISOString().slice(0, 10), label: d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }), usd: 0, count: 0 };
+      return { key: d.toISOString().slice(0, 10), label: formatDate(d.toISOString(), { day: "numeric", month: "short" }), usd: 0, count: 0 };
     });
     const idx = new Map(buckets.map((b, i) => [b.key, i]));
     for (const c of contributions) {
