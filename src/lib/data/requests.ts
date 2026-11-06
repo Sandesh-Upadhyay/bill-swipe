@@ -1,4 +1,5 @@
 import type { BillRequest } from "@/lib/types";
+import { SEED_DOCUMENTS } from "./documents";
 
 /**
  * FICTIONAL DEMO DATA.
@@ -507,6 +508,7 @@ export function buildSeedRequests(): BillRequest[] {
   return seeds.map(({ created, due, flagged, ...s }) => ({
     ...s,
     image: s.userId,
+    document: s.document ?? SEED_DOCUMENTS[s.id],
     flagged: flagged ?? false,
     createdAt: at(created),
     updatedAt: at(created),

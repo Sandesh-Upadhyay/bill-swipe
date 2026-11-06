@@ -122,3 +122,28 @@ export interface ActivityItem {
   createdAt: string;
   kind: "created" | "updated" | "withdrawn" | "contribution" | "status" | "report";
 }
+
+/* ---------------- Admin review (prototype only) ---------------- */
+
+/** The three simulated review checks a moderator records per request. Prototype states — never real verification. */
+export type VerificationCheckId = "identity" | "document" | "recipient";
+export type VerificationCheckStatus = "pending" | "passed" | "failed";
+
+export interface VerificationCheck {
+  status: VerificationCheckStatus;
+  /** Display name of the demo moderator who last changed the check. */
+  by?: string;
+  /** ISO timestamp of the last change. */
+  at?: string;
+}
+
+/** Missing checks default to "pending". */
+export type VerificationChecklist = Partial<Record<VerificationCheckId, VerificationCheck>>;
+
+/** Internal moderator note. Never shown to donors or requesters. */
+export interface ModeratorNote {
+  id: string;
+  text: string;
+  createdAt: string;
+  author: string;
+}

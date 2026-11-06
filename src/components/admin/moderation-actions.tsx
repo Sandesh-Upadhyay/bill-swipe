@@ -19,7 +19,9 @@ import { Label } from "@/components/ui/primitives";
 import { useRequestsStore } from "@/store/requests-store";
 import { useNotificationsStore } from "@/store/notifications-store";
 import { useAdminStore } from "@/store/admin-store";
+import { CHECK_IDS, CHECK_META, unpassedChecks } from "@/lib/admin/checks";
 import { cn } from "@/lib/utils";
+import { useModeratorName } from "./use-review";
 
 type NoteAction = "reject" | "info";
 
@@ -29,14 +31,23 @@ export function useModeration() {
   const setVerification = useRequestsStore((s) => s.setVerification);
   const toggleFlag = useRequestsStore((s) => s.toggleFlag);
   const push = useNotificationsStore((s) => s.push);
-  const log = useAdminStore((s) => s.logModeration);
+  const logModeration = useAdminStore((s) => s.logModeration);
+  const actor = useModeratorName();
 
-  return React.useMemo(
-    () => ({
+  return React.useMemo(() => {
+    // Every decision is attributed to the signed-in demo moderator in the audit log.
+    const log: typeof logModeration = (entry) => logModeration({ actor, ...entry });
+    return {
       approve: (r: BillRequest) => {
         setStatus(r.id, "active");
         setVerification(r.id, "demo_approved");
-        log({ kind: "approved", requestId: r.id, userId: r.userId, text: `Demo-approved “${r.title}” by ${r.name}` });
+        const pending = unpassedChecks(useAdminStore.getState().verificationChecks[r.id]).length;
+        log({
+          kind: "approved",
+          requestId: r.id,
+          userId: r.userId,
+          text: `Demo-approved “${r.title}” by ${r.name} (${CHECK_IDS.length - pending}/${CHECK_IDS.length} simulated checks passed)`,
+        });
         push(r.userId, {
           title: "Your request is live (demo)",
           body: `“${r.title}” was demo-approved and is now visible in Discover.`,
@@ -64,9 +75,8 @@ export function useModeration() {
         log({ kind: "flag", requestId: r.id, userId: r.userId, text: `${r.flagged ? "Removed the flag from" : "Flagged"} “${r.title}”` });
         toast.success(r.flagged ? `Removed flag from “${r.title}”` : `Flagged “${r.title}” — hidden from Discover`);
       },
-    }),
-    [setStatus, setVerification, toggleFlag, push, log],
-  );
+    };
+  }, [setStatus, setVerification, toggleFlag, push, logModeration, actor]);
 }
 
 function NoteDialog({
@@ -148,6 +158,8 @@ export function ModerationActions({
   const [noteAction, setNoteAction] = React.useState<NoteAction | null>(null);
   const closed = request.status === "withdrawn" || request.status === "completed";
   const isApproved = request.status === "active" && request.verification === "demo_approved";
+  const checks = useAdminStore((s) => s.verificationChecks[request.id]);
+  const notPassed = unpassedChecks(checks);
 
   return (
     <div className={cn("flex flex-wrap gap-2", className)}>
@@ -175,14 +187,22 @@ export function ModerationActions({
       <ConfirmDialog
         open={approveOpen}
         onOpenChange={setApproveOpen}
-        title="Demo-approve this request?"
+        title={notPassed.length ? "Approve with incomplete checks?" : "Demo-approve this request?"}
         description={
           <>
+            {notPassed.length > 0 && (
+              <span className="mb-3 block rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-900 dark:text-amber-200">
+                <strong>
+                  {notPassed.length} of {CHECK_IDS.length} simulated checks {notPassed.length === 1 ? "isn’t" : "aren’t"} passed:
+                </strong>{" "}
+                {notPassed.map((id) => CHECK_META[id].label).join(", ")}. You can still demo-approve, but consider finishing the checklist first.
+              </span>
+            )}
             “{request.title}” will become <strong>Active</strong> with a <strong>Demo-approved</strong> badge and appear in Discover. This is a
             prototype moderation state — it does not mean the person or bill has been independently verified.
           </>
         }
-        confirmLabel="Demo-approve"
+        confirmLabel={notPassed.length ? "Demo-approve anyway" : "Demo-approve"}
         onConfirm={() => mod.approve(request)}
       />
       <ConfirmDialog

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -28,6 +28,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/primiti
 import { EmptyState } from "@/components/layout/page-parts";
 import { SafetyMenu } from "@/components/requests/safety-actions";
 import { ACTION_LOCK_MS, StackedCard, SwipeCard, type EnterFrom, type ExitDirection } from "./swipe-card";
+import { StorySheet } from "./story-sheet";
+import { SwipeFeedback, type FeedbackEvent } from "./swipe-feedback";
 import { DiscoverFilters, EMPTY_FILTERS, activeFilterCount, type DiscoverFilterState } from "./discover-filters";
 import { useAuthStore } from "@/store/auth-store";
 import { isDiscoverable, useRequestsStore } from "@/store/requests-store";
@@ -71,6 +73,13 @@ function useDeck(filters: DiscoverFilterState, priorityId: string | null) {
       });
     return { queue, totalMatching: matching.length, allowUnverified };
   }, [requests, history, blocked, suspended, filters, priorityId, session?.userId, allowUnverified, disabledCategories]);
+}
+
+/** Light haptic on touch devices only, and only after the user has interacted (browsers block it otherwise). */
+function haptic(pattern: number | number[]) {
+  if (typeof navigator === "undefined" || !("vibrate" in navigator)) return;
+  const activated = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive ?? true;
+  if (activated && window.matchMedia("(pointer: coarse)").matches) navigator.vibrate(pattern);
 }
 
 function ControlButton({
@@ -137,6 +146,9 @@ export function DiscoverFeed() {
   const [enterFrom, setEnterFrom] = React.useState<EnterFrom>("stack");
   const [loading, setLoading] = React.useState(true);
   const [resetOpen, setResetOpen] = React.useState(false);
+  const [storyOpen, setStoryOpen] = React.useState(false);
+  const [feedback, setFeedback] = React.useState<FeedbackEvent | null>(null);
+  const [savePulse, setSavePulse] = React.useState(0);
   const { queue, totalMatching, allowUnverified } = useDeck(filters, priorityId);
   const top: BillRequest | undefined = queue[0];
   const interestedCount = history.filter((h) => h.direction === "right").length;
@@ -170,7 +182,8 @@ export function DiscoverFeed() {
         }
         setPriorityId(null);
         setEnterFrom("stack");
-        if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.(dir === "right" ? 12 : 6);
+        setFeedback((f) => ({ id: (f?.id ?? 0) + 1, kind: dir === "right" ? "interested" : "skip", name: top.name }));
+        haptic(dir === "right" ? [12, 40, 18] : 6);
         if (dir === "right") {
           toast.success(`Interested in ${top.name}'s request`, {
             description: "Saved to your interested list. Swiping never charges you.",
@@ -190,11 +203,18 @@ export function DiscoverFeed() {
     [top, claimAction, swipe, userId, router, interestedCount, pushNotification],
   );
 
+  // Swipe up / ↑ / info button: expand the full story in place, without leaving the deck.
   const openDetails = React.useCallback(() => {
     if (!top) return;
-    setExitDir("up");
-    router.push(`/requests/${top.id}`);
-  }, [top, router]);
+    setStoryOpen(true);
+  }, [top]);
+
+  // Clear the feedback overlay after it has played.
+  React.useEffect(() => {
+    if (!feedback) return;
+    const t = setTimeout(() => setFeedback(null), feedback.kind === "interested" ? 1100 : 450);
+    return () => clearTimeout(t);
+  }, [feedback]);
 
   const doUndo = React.useCallback(() => {
     if (!claimAction()) return;
@@ -213,14 +233,15 @@ export function DiscoverFeed() {
   const doSave = React.useCallback(() => {
     if (!top) return;
     const saved = toggleSaved(userId, top.id);
+    if (saved) setSavePulse((n) => n + 1);
     toast.success(saved ? "Saved for later" : "Removed from saved");
   }, [top, toggleSaved, userId]);
 
   // Keyboard shortcuts
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest("input, textarea, select, [role=dialog], [role=menu]")) return;
+      const target = e.target instanceof Element ? e.target : null;
+      if (target?.closest("input, textarea, select, [role=dialog], [role=alertdialog], [role=menu]")) return;
       if (e.key === "ArrowRight") doSwipe("right");
       else if (e.key === "ArrowLeft") doSwipe("left");
       else if (e.key === "ArrowUp") {
@@ -331,6 +352,7 @@ export function DiscoverFeed() {
               }
             />
           )}
+          <SwipeFeedback event={feedback} reducedMotion={reducedMotion} />
         </div>
 
         {/* Controls */}
@@ -355,7 +377,15 @@ export function DiscoverFeed() {
             <Heart className="fill-current" />
           </ControlButton>
           <ControlButton label={isSaved ? t("swipe.unsave") : t("swipe.save")} shortcut="S" onClick={doSave} disabled={!top || loading} size="sm">
-            {isSaved ? <BookmarkCheck className="text-primary" /> : <Bookmark className="text-primary" />}
+            <motion.span
+              key={savePulse}
+              className="grid place-items-center"
+              initial={savePulse && !reducedMotion ? { scale: 0.5, rotate: -15 } : false}
+              animate={{ scale: [0.5, 1.3, 1], rotate: 0 }}
+              transition={{ duration: 0.45, ease: "easeOut" }}
+            >
+              {isSaved ? <BookmarkCheck className="fill-primary/20 text-primary" /> : <Bookmark className="text-primary" />}
+            </motion.span>
           </ControlButton>
         </div>
         <p className="mt-4 max-w-sm text-center text-xs text-muted-foreground">
@@ -427,6 +457,22 @@ export function DiscoverFeed() {
           </div>
         </div>
       </aside>
+
+      <StorySheet
+        request={top}
+        open={storyOpen && !!top}
+        onOpenChange={setStoryOpen}
+        saved={isSaved}
+        onSave={doSave}
+        onSkip={() => {
+          setStoryOpen(false);
+          doSwipe("left");
+        }}
+        onInterested={() => {
+          setStoryOpen(false);
+          doSwipe("right");
+        }}
+      />
 
       <ConfirmDialog
         open={resetOpen}
