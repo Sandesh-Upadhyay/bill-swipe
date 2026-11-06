@@ -9,15 +9,22 @@ const CATEGORY_IDS = ["medical", "education", "rent", "electricity", "water", "e
 export const ACCEPTED_DOC_TYPES = ["image/png", "image/jpeg", "image/webp", "application/pdf"];
 export const MAX_DOC_MB = 10;
 
+/** Character limits for the free-text fields (shared by the schema and the on-screen counters). */
+export const TEXT_LIMITS = {
+  title: { min: 8, max: 80 },
+  summary: { min: 30, max: 220 },
+  story: { min: 120, max: 2500 },
+} as const;
+
 /** `limitFor` returns the maximum request size (USD equivalent) for a category. */
 export function buildSubmitSchema(limitFor: (category: CategoryId | undefined) => number) {
   return z
     .object({
       name: z.string().trim().min(2, "Enter a display name (at least 2 characters)").max(40, "Keep it under 40 characters"),
       country: z.enum(COUNTRY_CODES, { message: "Select your country" }),
-      city: z.string().trim().min(2, "Enter your town or city").max(60, "Keep it under 60 characters"),
+      city: z.string().trim().min(2, "Enter your town or city (at least 2 characters)").max(60, "Keep it under 60 characters"),
       category: z.enum(CATEGORY_IDS, { message: "Choose the bill category" }),
-      amount: z.number({ message: "Enter the amount" }).positive("Amount must be greater than zero"),
+      amount: z.number({ message: "Enter the amount outstanding, for example 120.50" }).positive("Amount must be greater than zero"),
       currency: z.enum(CURRENCY_CODES, { message: "Select a currency" }),
       /** Optional itemised lines. When present they must add up to `amount` (see `breakdownMismatch`). */
       breakdown: z
@@ -36,13 +43,13 @@ export function buildSubmitSchema(limitFor: (category: CategoryId | undefined) =
           return !Number.isNaN(d.getTime()) && d.getTime() > Date.now();
         }, "The due date must be in the future")
         .refine((v) => new Date(v).getTime() < Date.now() + 365 * 86_400_000, "Due date must be within the next 12 months"),
-      title: z.string().trim().min(8, "Title needs at least 8 characters").max(80, "Keep the title under 80 characters"),
+      title: z.string().trim().min(TEXT_LIMITS.title.min, "Title needs at least 8 characters").max(TEXT_LIMITS.title.max, "Keep the title under 80 characters"),
       summary: z
         .string()
         .trim()
-        .min(30, "Write at least 30 characters — this appears on swipe cards")
-        .max(220, "Keep the summary under 220 characters"),
-      story: z.string().trim().min(120, "Share at least 120 characters so donors understand your situation").max(2500, "Keep your story under 2,500 characters"),
+        .min(TEXT_LIMITS.summary.min, "Write at least 30 characters — this appears on swipe cards")
+        .max(TEXT_LIMITS.summary.max, "Keep the summary under 220 characters"),
+      story: z.string().trim().min(TEXT_LIMITS.story.min, "Share at least 120 characters so donors understand your situation").max(TEXT_LIMITS.story.max, "Keep your story under 2,500 characters"),
       truthful: z.boolean().refine((v) => v, "Please confirm the information is accurate"),
       understand: z.boolean().refine((v) => v, "Please confirm you understand this is a prototype"),
     })
@@ -91,3 +98,29 @@ export const STEPS = [
   { title: "Bill document", short: "Document" },
   { title: "Review & submit", short: "Review" },
 ];
+
+/** Rough minutes each step takes, used for the "About N min left" estimate. */
+export const STEP_MINUTES = [1, 0.5, 1.5, 0.5, 4, 1, 1];
+
+/** Minutes left including the current step, rounded up (0 means "under a minute"). */
+export function minutesLeft(step: number) {
+  const m = STEP_MINUTES.slice(step).reduce((s, n) => s + n, 0);
+  return m < 1 ? 0 : Math.ceil(m);
+}
+
+/** Human labels for the error summary. */
+export const FIELD_LABELS: Record<keyof SubmitValues, string> = {
+  name: "Display name",
+  country: "Country",
+  city: "Town or city",
+  category: "Bill category",
+  amount: "Amount outstanding",
+  currency: "Currency",
+  breakdown: "Itemised breakdown",
+  dueDate: "Due date",
+  title: "Request title",
+  summary: "Short summary",
+  story: "Your story",
+  truthful: "Accuracy confirmation",
+  understand: "Prototype confirmation",
+};

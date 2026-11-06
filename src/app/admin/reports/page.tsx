@@ -16,6 +16,7 @@ import { timeAgo } from "@/lib/utils";
 import { FilterSelect, ResultCount, SearchInput, TableEmpty, Toolbar } from "@/components/admin/table-tools";
 import { RequestDetailDrawer } from "@/components/admin/request-detail-drawer";
 import { useModeration } from "@/components/admin/moderation-actions";
+import { useModeratorName } from "@/components/admin/use-review";
 
 type PendingAction = { kind: "resolved" | "dismissed" | "flag"; report: RequestReport } | null;
 
@@ -35,6 +36,7 @@ export default function AdminReportsPage() {
   const setReportStatus = useRequestsStore((s) => s.setReportStatus);
   const users = useAdminStore((s) => s.users);
   const logModeration = useAdminStore((s) => s.logModeration);
+  const moderator = useModeratorName();
   const mod = useModeration();
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState<"all" | RequestReport["status"]>("open");
@@ -180,6 +182,7 @@ export default function AdminReportsPage() {
             setReportStatus(pending.report.id, pending.kind);
             logModeration({
               kind: "report",
+              actor: moderator,
               requestId: pending.report.requestId,
               text: `${pending.kind === "resolved" ? "Resolved" : "Dismissed"} a “${pending.report.reason}” report on “${pendingRequest?.title ?? "a request"}”`,
             });

@@ -4,7 +4,7 @@ import * as React from "react";
 import { motion, useMotionValue, useTransform, type MotionValue } from "framer-motion";
 import { CalendarClock, ChevronUp, Heart, Users, X } from "lucide-react";
 import type { BillRequest, SwipeDirection } from "@/lib/types";
-import { cn, dueLabel } from "@/lib/utils";
+import { cn, daysUntil, dueLabel } from "@/lib/utils";
 import { RequestCover, SaveButton } from "@/components/requests/request-card";
 import { CategoryBadge, CountryLabel, FictionalTag, VerificationBadge } from "@/components/requests/badges";
 import { FundingProgress, Money } from "@/components/requests/money";
@@ -27,8 +27,14 @@ export function SwipeCardBody({ request, compact }: { request: BillRequest; comp
       <div className="absolute inset-x-0 bottom-0 grid gap-3 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-5 pt-16 text-white">
         <div className="flex flex-wrap items-center gap-2">
           <CategoryBadge category={request.category} className="bg-white/15 text-white backdrop-blur" />
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs backdrop-blur">
-            <CalendarClock className="size-3.5" /> {dueLabel(request.dueDate)}
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs backdrop-blur",
+              daysUntil(request.dueDate) <= 7 ? "bg-amber-400/90 font-semibold text-amber-950" : "bg-white/15",
+            )}
+          >
+            <CalendarClock className="size-3.5" /> {daysUntil(request.dueDate) <= 7 && daysUntil(request.dueDate) >= 0 ? "Urgent · " : ""}
+            {dueLabel(request.dueDate)}
           </span>
         </div>
         <div>
@@ -192,7 +198,7 @@ export function SwipeCard({
           icon={<X className="size-5" />}
         />
         <Stamp
-          label="Details"
+          label="Full story"
           opacity={upOpacity}
           className="left-1/2 top-1/3 -translate-x-1/2 border-sky-300 bg-sky-500/20 text-sky-100"
           icon={<ChevronUp className="size-5" />}

@@ -4,8 +4,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
-import { Ban, HandHeart, LogOut, Monitor, Moon, RotateCcw, ShieldCheck, Sun, Trash2, FileHeart } from "lucide-react";
-import type { Role, Session } from "@/lib/types";
+import { Ban, LogOut, Monitor, Moon, RotateCcw, ShieldCheck, Sun, Trash2 } from "lucide-react";
+import type { Session } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { FORMAT_LOCALES, type FormatLocale } from "@/lib/i18n/locale";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, NativeSelect
 import { ConfirmDialog } from "@/components/ui/overlays";
 import { Label, Switch } from "@/components/ui/primitives";
 import { DemoAvatar } from "@/components/brand/demo-avatar";
-import { dashboardPath } from "@/components/layout/user-menu";
+import { ROLE_INFO, RoleSwitchDialog, type SwitchableRole } from "@/components/layout/role-switch";
 import { resetAllDemoData } from "@/store";
 import { useAuthStore } from "@/store/auth-store";
 import { useAdminStore } from "@/store/admin-store";
@@ -50,10 +50,7 @@ function OptionButton({
 }
 
 export function RoleCard({ session }: { session: Session }) {
-  const setRole = useAuthStore((s) => s.setRole);
-  const setUserRole = useAdminStore((s) => s.setUserRole);
-  const router = useRouter();
-  const [pending, setPending] = React.useState<Role | null>(null);
+  const [pending, setPending] = React.useState<SwitchableRole | null>(null);
 
   if (session.role === "admin") {
     return (
@@ -66,10 +63,7 @@ export function RoleCard({ session }: { session: Session }) {
     );
   }
 
-  const options: { role: Role; label: string; hint: string; icon: typeof HandHeart }[] = [
-    { role: "donor", label: "Donor", hint: "Discover and support requests", icon: HandHeart },
-    { role: "requester", label: "Requester", hint: "Share bills and track progress", icon: FileHeart },
-  ];
+  const options = (Object.keys(ROLE_INFO) as SwitchableRole[]).map((role) => ({ role, ...ROLE_INFO[role] }));
 
   return (
     <Card>
@@ -99,21 +93,7 @@ export function RoleCard({ session }: { session: Session }) {
           </button>
         ))}
       </CardContent>
-      <ConfirmDialog
-        open={!!pending}
-        onOpenChange={(o) => !o && setPending(null)}
-        title={`Switch to ${pending ?? ""} mode?`}
-        description="Your demo data stays intact. You'll be taken to the matching dashboard."
-        confirmLabel="Switch role"
-        onConfirm={() => {
-          if (!pending) return;
-          setRole(pending);
-          setUserRole(session.userId, pending);
-          toast.success(`You're now in ${pending} mode`);
-          router.push(dashboardPath(pending));
-          setPending(null);
-        }}
-      />
+      <RoleSwitchDialog role={pending} onOpenChange={(o) => !o && setPending(null)} />
     </Card>
   );
 }

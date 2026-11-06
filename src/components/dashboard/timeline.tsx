@@ -6,7 +6,9 @@ import {
   Activity,
   BadgeCheck,
   CheckCircle2,
+  ListChecks,
   MessageSquareMore,
+  StickyNote,
   Tags,
   UserCog,
   XCircle,
@@ -43,7 +45,9 @@ export type TimelineKind =
   | "info"
   | "flag"
   | "user"
-  | "category";
+  | "category"
+  | "checklist"
+  | "note";
 
 export interface TimelineEntry {
   id: string;
@@ -70,6 +74,8 @@ const KIND_META: Record<TimelineKind, { icon: LucideIcon; tone: string; label: s
   flag: { icon: Flag, tone: "bg-amber-500/14 text-amber-700 dark:text-amber-300", label: "Flag" },
   user: { icon: UserCog, tone: "bg-violet-500/12 text-violet-700 dark:text-violet-300", label: "User management" },
   category: { icon: Tags, tone: "bg-muted text-muted-foreground", label: "Category" },
+  checklist: { icon: ListChecks, tone: "bg-teal-500/12 text-teal-700 dark:text-teal-300", label: "Verification check" },
+  note: { icon: StickyNote, tone: "bg-amber-500/14 text-amber-700 dark:text-amber-300", label: "Moderator note" },
 };
 
 function dayKey(iso: string) {

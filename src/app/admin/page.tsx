@@ -171,6 +171,7 @@ export default function AdminOverviewPage() {
           description="Every moderator decision made in this browser, newest first."
           entries={moderationLog.map((m) => ({
             id: m.id,
+            // Checklist and note entries reuse the closest existing timeline styles.
             kind: m.kind,
             text: m.text,
             createdAt: m.createdAt,

@@ -8,6 +8,7 @@ import { EmptyState, PageContainer, PageHeader, SimulatedNote, StatCard } from "
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/primitives";
 import { ActivityFeed, OwnRequestCard } from "@/components/dashboard/requester-sections";
+import { RequesterWelcome, TAB_EMPTY } from "@/components/dashboard/requester-welcome";
 import {
   ChartCard,
   FundingByRequestChart,
@@ -105,106 +106,113 @@ function RequesterDashboard() {
         Amounts received are simulated. No money has been collected or paid out — BillSwipe is a prototype.
       </SimulatedNote>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          label="Total amount requested"
-          value={<MoneyStat items={counted} pick={(r) => r.amount} />}
-          hint={perCurrencyHint(counted, (r) => r.amount, "Across your open and completed requests")}
-          icon={FileText}
-        />
-        <StatCard
-          label="Simulated amount received"
-          value={<MoneyStat items={counted} pick={(r) => r.amountRaised} />}
-          hint={perCurrencyHint(counted, (r) => r.amountRaised, "Simulated — not real funds")}
-          icon={PiggyBank}
-          tone="primary"
-        />
-        <StatCard
-          label="Remaining balance"
-          value={<MoneyStat items={counted} pick={(r) => Math.max(0, r.amount - r.amountRaised)} />}
-          hint={perCurrencyHint(counted, (r) => Math.max(0, r.amount - r.amountRaised), "Still outstanding (simulated)")}
-          icon={Wallet}
-          tone="warning"
-        />
-        <StatCard label="Active requests" value={count(TABS[0].match)} hint="Visible in Discover" icon={Clock} tone="primary" />
-        <StatCard label="Pending review" value={count(TABS[1].match)} hint="Including requests needing more info" icon={Hourglass} tone="warning" />
-        <StatCard label="Completed" value={count(TABS[2].match)} hint="Goal reached (simulated)" icon={CheckCircle2} />
-      </div>
-
-      {mine.length > 0 && (
-        <section aria-labelledby="progress-heading" className="mt-10 grid gap-4">
-          <h2 id="progress-heading" className="text-lg font-semibold tracking-tight">
-            Progress
-          </h2>
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
-            <ChartCard
-              title="Funding by request"
-              description="Share of each goal reached · simulated, in each request's own currency"
-              empty={funding.length === 0}
-              emptyText="Funding progress appears once a request is approved."
-            >
-              <FundingByRequestChart data={funding} />
-            </ChartCard>
-            <ChartCard
-              title="Simulated support received"
-              description={`${weeks === 26 ? "Last 6 months" : `Last ${weeks} weeks`} · ≈ USD at fixed demo rates`}
-              empty={!supportTrend.some((d) => d.value > 0)}
-              emptyText={received.length === 0 ? "No simulated contributions yet." : "No simulated contributions in this period. Try a longer range."}
-              actions={<RangeToggle label="Time range" value={weeks} options={WEEK_RANGES} onChange={setWeeks} />}
-            >
-              <TrendAreaChart data={supportTrend} label="Simulated support received over time" />
-            </ChartCard>
-          </div>
-        </section>
-      )}
-
-      <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <section aria-labelledby="my-requests">
-          <h2 id="my-requests" className="mb-4 text-lg font-semibold tracking-tight">
-            My requests
-          </h2>
-          {mine.length === 0 ? (
-            <EmptyState
-              icon={FilePlus2}
-              title="You haven't submitted a bill yet"
-              description="Share an essential bill and a short story. It'll be reviewed by a demo moderator before appearing in Discover."
-              action={
-                <Button asChild>
-                  <Link href="/submit">Submit your first bill</Link>
-                </Button>
-              }
+      {mine.length === 0 ? (
+        <RequesterWelcome name={session.name.split(" ")[0]} />
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              label="Total amount requested"
+              value={<MoneyStat items={counted} pick={(r) => r.amount} />}
+              hint={perCurrencyHint(counted, (r) => r.amount, "Across your open and completed requests")}
+              icon={FileText}
             />
-          ) : (
-            <Tabs defaultValue="active">
-              <div className="-mx-1 overflow-x-auto px-1 pb-1 scrollbar-none">
-                <TabsList>
-                  {TABS.map((t) => (
-                    <TabsTrigger key={t.id} value={t.id}>
-                      {t.label}
-                      <span className="rounded-full bg-muted px-1.5 text-[11px] tabular-nums">{count(t.match)}</span>
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+            <StatCard
+              label="Simulated amount received"
+              value={<MoneyStat items={counted} pick={(r) => r.amountRaised} />}
+              hint={perCurrencyHint(counted, (r) => r.amountRaised, "Simulated — not real funds")}
+              icon={PiggyBank}
+              tone="primary"
+            />
+            <StatCard
+              label="Remaining balance"
+              value={<MoneyStat items={counted} pick={(r) => Math.max(0, r.amount - r.amountRaised)} />}
+              hint={perCurrencyHint(counted, (r) => Math.max(0, r.amount - r.amountRaised), "Still outstanding (simulated)")}
+              icon={Wallet}
+              tone="warning"
+            />
+            <StatCard label="Active requests" value={count(TABS[0].match)} hint="Visible in Discover" icon={Clock} tone="primary" />
+            <StatCard label="Pending review" value={count(TABS[1].match)} hint="Including requests needing more info" icon={Hourglass} tone="warning" />
+            <StatCard label="Completed" value={count(TABS[2].match)} hint="Goal reached (simulated)" icon={CheckCircle2} />
+          </div>
+
+          {mine.length > 0 && (
+            <section aria-labelledby="progress-heading" className="mt-10 grid gap-4">
+              <h2 id="progress-heading" className="text-lg font-semibold tracking-tight">
+                Progress
+              </h2>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
+                <ChartCard
+                  title="Funding by request"
+                  description="Share of each goal reached · simulated, in each request's own currency"
+                  empty={funding.length === 0}
+                  emptyText="Funding progress appears once a request is approved."
+                >
+                  <FundingByRequestChart data={funding} />
+                </ChartCard>
+                <ChartCard
+                  title="Simulated support received"
+                  description={`${weeks === 26 ? "Last 6 months" : `Last ${weeks} weeks`} · ≈ USD at fixed demo rates`}
+                  empty={!supportTrend.some((d) => d.value > 0)}
+                  emptyText={received.length === 0 ? "No simulated contributions yet." : "No simulated contributions in this period. Try a longer range."}
+                  actions={<RangeToggle label="Time range" value={weeks} options={WEEK_RANGES} onChange={setWeeks} />}
+                >
+                  <TrendAreaChart data={supportTrend} label="Simulated support received over time" />
+                </ChartCard>
               </div>
-              {TABS.map((t) => {
-                const list = mine.filter(t.match);
-                return (
-                  <TabsContent key={t.id} value={t.id} className="mt-5 grid gap-4">
-                    {list.length === 0 ? (
-                      <EmptyState icon={FileText} title={`No ${t.label.toLowerCase()} requests`} className="py-10" />
-                    ) : (
-                      list.map((r) => <OwnRequestCard key={r.id} request={r} userId={session.userId} />)
-                    )}
-                  </TabsContent>
-                );
-              })}
-            </Tabs>
+            </section>
           )}
-        </section>
-        <aside>
-          <ActivityFeed activity={myActivity} contributions={myContribs} requestsById={requestsById} />
-        </aside>
-      </div>
+
+          <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <section aria-labelledby="my-requests">
+              <h2 id="my-requests" className="mb-4 text-lg font-semibold tracking-tight">
+                My requests
+              </h2>
+              <Tabs defaultValue={TABS.find((t) => count(t.match) > 0)?.id ?? "active"}>
+                <div className="-mx-1 overflow-x-auto px-1 pb-1 scrollbar-none">
+                  <TabsList>
+                    {TABS.map((t) => (
+                      <TabsTrigger key={t.id} value={t.id}>
+                        {t.label}
+                        <span className="rounded-full bg-muted px-1.5 text-[11px] tabular-nums">{count(t.match)}</span>
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </div>
+                {TABS.map((t) => {
+                  const list = mine.filter(t.match);
+                  return (
+                    <TabsContent key={t.id} value={t.id} className="mt-5 grid gap-4">
+                      {list.length === 0 ? (
+                        <EmptyState
+                          icon={FileText}
+                          title={TAB_EMPTY[t.id].title}
+                          description={TAB_EMPTY[t.id].description}
+                          className="py-10"
+                          action={
+                            t.id !== "closed" ? (
+                              <Button asChild variant="outline" size="sm">
+                                <Link href="/submit">
+                                  <FilePlus2 /> Submit a bill
+                                </Link>
+                              </Button>
+                            ) : undefined
+                          }
+                        />
+                      ) : (
+                        list.map((r) => <OwnRequestCard key={r.id} request={r} userId={session.userId} />)
+                      )}
+                    </TabsContent>
+                  );
+                })}
+              </Tabs>
+            </section>
+            <aside>
+              <ActivityFeed activity={myActivity} contributions={myContribs} requestsById={requestsById} />
+            </aside>
+          </div>
+        </>
+      )}
     </PageContainer>
   );
 }
