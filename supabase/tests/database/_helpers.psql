@@ -1,0 +1,100 @@
+-- Shared helpers for BillSwipe database tests. Included with `\ir _helpers.psql`
+-- from each *.test.sql file (inside the test's transaction, so they're rolled back).
+-- The .psql extension keeps `supabase test db` from running this file as a test.
+
+create schema if not exists tests;
+grant usage on schema tests to anon, authenticated;
+
+-- Creates an auth user; the on_auth_user_created trigger creates the profile.
+create or replace function tests.create_user(p_email text, p_name text default 'Test User', p_meta jsonb default '{}'::jsonb)
+returns uuid
+language plpgsql
+as $$
+declare
+  v_id uuid := gen_random_uuid();
+begin
+  insert into auth.users (id, email, aud, role, raw_user_meta_data)
+  values (v_id, p_email, 'authenticated', 'authenticated', jsonb_build_object('display_name', p_name) || p_meta);
+  return v_id;
+end;
+$$;
+
+-- Remembers an id under a name for later statements: tests.remember('alice', id) / tests.uid('alice').
+create or replace function tests.remember(p_name text, p_id uuid)
+returns uuid
+language sql
+as $$ select set_config('test.' || p_name, p_id::text, true)::uuid; $$;
+
+create or replace function tests.uid(p_name text)
+returns uuid
+language sql
+stable
+as $$ select current_setting('test.' || p_name)::uuid; $$;
+
+-- Grants admin as the database owner (the only way admin can be granted).
+create or replace function tests.make_admin(p_user uuid)
+returns void
+language sql
+as $$ update public.profiles set is_admin = true where id = p_user; $$;
+
+-- Inserts a valid request as the database owner (bypasses client guards, like a migration/seed).
+create or replace function tests.create_request(
+  p_owner uuid,
+  p_status public.request_status default 'active',
+  p_verification public.verification_status default 'verified',
+  p_amount numeric default 500,
+  p_currency text default 'USD'
+)
+returns uuid
+language plpgsql
+as $$
+declare
+  v_id uuid;
+begin
+  insert into public.bill_requests (
+    requester_id, title, summary, story, category, amount, currency, country_code, city, due_date,
+    status, verification_status, published_at
+  ) values (
+    p_owner, 'Test electricity bill', repeat('Summary text ', 4), repeat('A fictional story used only in database tests. ', 4),
+    'electricity', p_amount, p_currency::public.currency_code, 'US', 'Testville', current_date + 30,
+    p_status, p_verification, case when p_status in ('active', 'completed') then now() end
+  )
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+
+-- Act as a signed-in user for the rest of the transaction (like a request with that user's JWT).
+create or replace function tests.authenticate_as(p_user uuid)
+returns void
+language plpgsql
+as $$
+begin
+  perform set_config('request.jwt.claims', json_build_object('sub', p_user, 'role', 'authenticated')::text, true);
+  execute 'set local role authenticated';
+end;
+$$;
+
+-- Act as a signed-out visitor using the publishable key.
+create or replace function tests.authenticate_as_anon()
+returns void
+language plpgsql
+as $$
+begin
+  perform set_config('request.jwt.claims', '{"role": "anon"}', true);
+  execute 'set local role anon';
+end;
+$$;
+
+-- Back to the database owner.
+create or replace function tests.clear_authentication()
+returns void
+language plpgsql
+as $$
+begin
+  perform set_config('request.jwt.claims', '', true);
+  execute 'reset role';
+end;
+$$;
+
+grant execute on all functions in schema tests to anon, authenticated;
