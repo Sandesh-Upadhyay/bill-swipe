@@ -144,7 +144,6 @@ export function DiscoverFeed() {
   const [priorityId, setPriorityId] = React.useState<string | null>(null);
   const [exitDir, setExitDir] = React.useState<ExitDirection>("left");
   const [enterFrom, setEnterFrom] = React.useState<EnterFrom>("stack");
-  const [loading, setLoading] = React.useState(true);
   const [resetOpen, setResetOpen] = React.useState(false);
   const [storyOpen, setStoryOpen] = React.useState(false);
   const [feedback, setFeedback] = React.useState<FeedbackEvent | null>(null);
@@ -153,12 +152,15 @@ export function DiscoverFeed() {
   const top: BillRequest | undefined = queue[0];
   const interestedCount = history.filter((h) => h.direction === "right").length;
 
-  // Simulated network latency for the loading state (and on filter changes)
+  // Simulated network latency for the loading state (and on filter changes). Loading is derived
+  // from "which filters have finished loading", so no state is set synchronously in the effect.
+  const filtersKey = JSON.stringify(filters);
+  const [loadedKey, setLoadedKey] = React.useState<string | null>(null);
+  const loading = loadedKey !== filtersKey;
   React.useEffect(() => {
-    setLoading(true);
-    const t = setTimeout(() => setLoading(false), 450);
+    const t = setTimeout(() => setLoadedKey(filtersKey), 450);
     return () => clearTimeout(t);
-  }, [filters]);
+  }, [filtersKey]);
 
   // Briefly lock the deck after each action so a fast double-tap can't respond to two cards at once.
   const busyUntil = React.useRef(0);

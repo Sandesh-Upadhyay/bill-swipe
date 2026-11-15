@@ -1,4 +1,4 @@
-# Supabase setup — BillSwipe v2.0, Phase 1
+# Supabase setup — BillSwipe v2.0 (Phases 1–2)
 
 Phase 1 adds the Supabase **backend foundation** only: database schema, security, storage, server functions, seed data and tests. The app's screens still run on the existing demo data (Zustand + LocalStorage) and work exactly as before, with or without Supabase configured. Wiring screens to Supabase is Phase 2.
 
@@ -21,8 +21,8 @@ Related docs: [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) · [SECURITY.md](SECURITY
 
 | Phase | Scope |
 |---|---|
-| **1 (this)** | Schema, RLS, grants, storage, server functions, dev seed, tests, docs. Supabase clients + session-refresh proxy that are **inactive until configured**. No UI changes. |
-| 2 | Supabase Auth (email sign-in/sign-up) replacing demo auth; profiles + role switching (`active_mode`) backed by the database; route protection in `src/proxy.ts`. |
+| 1 ✅ | Schema, RLS, grants, storage, server functions, dev seed, tests, docs. Supabase clients + session-refresh proxy that are **inactive until configured**. No UI changes. |
+| 2 ✅ | Supabase Auth (email + Google), profiles and donor/requester switching backed by the database, server-side route protection, demo mode kept separate. See AUTHENTICATION_SETUP.md. |
 | 3 | Data layer: requests, discovery, swipes, saved, contributions (via RPCs) and notifications read from Supabase, replacing the matching Zustand stores one at a time. |
 | 4 | Document upload to the private bucket + reviewer previews via signed URLs; admin panel on the admin RPCs and `admin_audit_logs`. |
 | 5 | Remove demo-only stores/mock data from production builds; keep the seed for local development. |
@@ -71,6 +71,16 @@ supabase db push                  # applies supabase/migrations only (not seed.s
 
 `supabase db push` never runs `seed.sql` unless you pass `--include-seed`. Don't pass it for production.
 
+Phase 2 adds `supabase/migrations/20261120000001_auth_profiles.sql` (new profile columns, idempotent profile creation). If you applied the Phase 1 migrations by pasting them into the SQL Editor, first record them so `db push` only runs the new one:
+
+```bash
+supabase migration repair --status applied 20261114000001 20261114000002 20261114000003 20261114000004
+supabase db push --dry-run
+supabase db push
+```
+
+Or paste the new file into the SQL Editor and then run `supabase migration repair --status applied 20261120000001`.
+
 After pushing, grant your first admin from the **SQL Editor** (runs as the database owner, which is the only way to grant admin):
 
 ```sql
@@ -92,6 +102,8 @@ Local demo sign-ins are listed at the top of `supabase/seed.sql` (local stack on
 ```bash
 pnpm db:test            # = supabase test db  (needs the local stack running)
 pnpm db:test:local      # Docker-free: PGlite + Supabase shim, same test files
+pnpm test:unit          # auth helper unit tests (redirect safety, cookies, error messages)
+pnpm lint               # ESLint (Next.js core-web-vitals + TypeScript rules)
 ```
 
 `pnpm db:test:local` boots Postgres in WebAssembly, loads a minimal shim of Supabase's `auth`/`storage` schemas and API roles (`scripts/db-test/supabase-shim.sql`), applies every migration and the seed, then runs `supabase/tests/database/*.test.sql`. It exercises real RLS by switching to the `anon` and `authenticated` roles with JWT claims. Differences from a real stack:

@@ -26,6 +26,7 @@ import { FieldError, Input, NativeSelect, Textarea } from "@/components/ui/basic
 import { Label, Progress } from "@/components/ui/primitives";
 import { DemoAvatar } from "@/components/brand/demo-avatar";
 import { useAuthStore } from "@/store/auth-store";
+import { completeOnboardingAction } from "@/app/auth/actions";
 import { useAdminStore } from "@/store/admin-store";
 
 const STEPS = ["Your role", "Profile", "Preferences", "All set"];
@@ -111,8 +112,25 @@ export function OnboardingWizard() {
   const finish = async () => {
     if (!role) return;
     setFinishing(true);
-    await new Promise((r) => setTimeout(r, 450));
     const cc = country as CountryCode;
+
+    // Real account: save to the database (the server re-validates and checks the session).
+    if (session.source === "supabase") {
+      const nextParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("next") ?? undefined : undefined;
+      const res = await completeOnboardingAction({ mode: role, name: name.trim(), country: cc, bio: bio.trim() }, nextParam);
+      if (!res.ok) {
+        setFinishing(false);
+        toast.error(res.error);
+        return;
+      }
+      useAuthStore.getState().adoptSupabaseSession(res.profile);
+      toast.success("Your profile is ready");
+      router.push(res.next);
+      router.refresh();
+      return;
+    }
+
+    await new Promise((r) => setTimeout(r, 450));
     updateProfile({ role, name: name.trim(), country: cc, bio: bio.trim() });
     completeOnboarding();
     upsertUser({

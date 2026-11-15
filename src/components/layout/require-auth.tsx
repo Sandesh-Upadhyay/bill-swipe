@@ -7,6 +7,7 @@ import { Ban, Lock } from "lucide-react";
 import type { Role } from "@/lib/types";
 import { useAuthStore } from "@/store/auth-store";
 import { useSuspendedUserIds } from "@/store/admin-store";
+import { useAuthSyncReady } from "@/components/auth/auth-sync";
 import { useHydrated } from "@/store/hydration-store";
 import { Skeleton } from "@/components/ui/basic";
 import { Button } from "@/components/ui/button";
@@ -39,18 +40,24 @@ export function RequireAuth({
   roles?: Role[];
   fallback?: React.ReactNode;
 }) {
-  const hydrated = useHydrated();
+  const storeHydrated = useHydrated();
+  // With Supabase, also wait for the first server session check so a freshly signed-in
+  // account isn't bounced to /login before its session reaches the browser store.
+  const syncReady = useAuthSyncReady();
+  const hydrated = storeHydrated && syncReady;
   const session = useAuthStore((s) => s.session);
   const logout = useAuthStore((s) => s.logout);
   const suspendedIds = useSuspendedUserIds();
-  const suspended = !!session && suspendedIds.has(session.userId);
+  // Real accounts: status comes from the database (the server guard enforces it too).
+  // Demo accounts: status comes from the demo admin panel.
+  const suspended = !!session && (session.source === "supabase" ? session.status === "suspended" : suspendedIds.has(session.userId));
   const router = useRouter();
   const pathname = usePathname();
 
   React.useEffect(() => {
     if (!hydrated) return;
     if (!session) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-    else if (!session.onboarded && pathname !== "/onboarding") router.replace("/onboarding");
+    else if (!session.onboarded && pathname !== "/onboarding") router.replace(`/onboarding?next=${encodeURIComponent(pathname)}`);
   }, [hydrated, session, router, pathname]);
 
   if (!hydrated || !session || (!session.onboarded && pathname !== "/onboarding")) return <>{fallback ?? <PageSkeleton />}</>;

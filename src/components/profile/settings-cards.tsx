@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/ui/overlays";
 import { Label, Switch } from "@/components/ui/primitives";
 import { DemoAvatar } from "@/components/brand/demo-avatar";
 import { ROLE_INFO, RoleSwitchDialog, type SwitchableRole } from "@/components/layout/role-switch";
+import { useSignOut } from "@/components/auth/sign-out-button";
 import { resetAllDemoData } from "@/store";
 import { useAuthStore } from "@/store/auth-store";
 import { useAdminStore } from "@/store/admin-store";
@@ -238,6 +239,7 @@ export function SafetyCard({ session }: { session: Session }) {
 export function DangerZoneCard({ session }: { session: Session }) {
   const resetUser = useSwipeStore((s) => s.resetUser);
   const logout = useAuthStore((s) => s.logout);
+  const signOut = useSignOut();
   const router = useRouter();
 
   return (
@@ -270,12 +272,18 @@ export function DangerZoneCard({ session }: { session: Session }) {
         <div className="flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium">Sign out</p>
-            <p className="text-xs text-muted-foreground">End this demo session. Your demo data stays on this device.</p>
+            <p className="text-xs text-muted-foreground">
+              {session.source === "supabase" ? "Sign out of your account on this device." : "End this demo session. Your demo data stays on this device."}
+            </p>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={() => {
+              if (session.source === "supabase") {
+                void signOut();
+                return;
+              }
               // Navigate away first so the auth guard doesn't bounce to /login
               router.push("/");
               setTimeout(() => {

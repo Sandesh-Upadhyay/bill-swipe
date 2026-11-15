@@ -50,6 +50,7 @@ import {
 import type { CategoryId, CountryCode, CurrencyCode } from "@/lib/types";
 import type { CategorySetting } from "@/store/admin-store";
 import { useAuthStore } from "@/store/auth-store";
+import { useRoleSwitch } from "@/components/layout/role-switch";
 import { useAdminStore } from "@/store/admin-store";
 import { useRequestsStore } from "@/store/requests-store";
 import { useNotificationsStore } from "@/store/notifications-store";
@@ -555,7 +556,8 @@ function BreakdownEditor({ form }: { form: Form }) {
 function DueDateStep({ form }: { form: Form }) {
   const e = form.formState.errors;
   const due = form.watch("dueDate");
-  const min = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  // Tomorrow, computed once per mount (keeps render pure).
+  const [min] = React.useState(() => new Date(Date.now() + 86_400_000).toISOString().slice(0, 10));
   return (
     <div className="grid gap-5">
       <Field id="dueDate" label="When is the bill due?" hint="Use the date shown on the bill. Overdue bills: choose the latest date before further action." error={e.dueDate?.message}>
@@ -805,6 +807,7 @@ function ReviewStep({
 export function SubmitWizard() {
   const session = useAuthStore((s) => s.session);
   const setRole = useAuthStore((s) => s.setRole);
+  const switchRole = useRoleSwitch();
   const upsertUser = useAdminStore((s) => s.upsertUser);
   const settings = useAdminStore((s) => s.settings);
   const categorySettings = useAdminStore((s) => s.categories);
@@ -952,6 +955,11 @@ export function SubmitWizard() {
             </Button>
             <Button
               onClick={() => {
+                // Real accounts save the switch on the server and stay on /submit.
+                if (session.source === "supabase") {
+                  void switchRole("requester", { next: "/submit" });
+                  return;
+                }
                 setRole("requester");
                 upsertUser({
                   id: session.userId,

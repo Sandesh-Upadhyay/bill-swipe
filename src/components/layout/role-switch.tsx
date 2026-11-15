@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/overlays";
 import { useAuthStore } from "@/store/auth-store";
+import { setActiveModeAction } from "@/app/auth/actions";
 import { useAdminStore } from "@/store/admin-store";
 import { dashboardPath } from "./user-menu";
 
@@ -44,10 +45,41 @@ export function useRoleSwitch() {
   const pathname = usePathname();
 
   return React.useCallback(
-    (role: SwitchableRole, opts: { next?: string; silent?: boolean } = {}) => {
+    async (role: SwitchableRole, opts: { next?: string; silent?: boolean } = {}) => {
       const { session, setRole } = useAuthStore.getState();
       if (!session || session.role === role || session.role === "admin") return;
       const previous = session.role as SwitchableRole;
+
+      // Real account: the preference is saved on the server (profiles.active_mode, own row only).
+      // Admin is a separate privilege and is never affected by switching.
+      if (session.source === "supabase") {
+        const res = await setActiveModeAction(role);
+        if (!res.ok) {
+          toast.error(res.error);
+          return;
+        }
+        useAuthStore.getState().adoptSupabaseSession(res.profile);
+        const dest = destinationFor(role, pathname, opts.next);
+        if (dest !== pathname) router.push(dest);
+        router.refresh();
+        if (!opts.silent) {
+          toast.success(`You're now using BillSwipe as a ${ROLE_INFO[role].label.toLowerCase()}`, {
+            description: "Your saved requests, activity and profile are unchanged.",
+            action: {
+              label: "Undo",
+              onClick: async () => {
+                const undo = await setActiveModeAction(previous);
+                if (!undo.ok) return toast.error(undo.error);
+                useAuthStore.getState().adoptSupabaseSession(undo.profile);
+                if (dest !== pathname) router.push(pathname);
+                toast(`Switched back to ${ROLE_INFO[previous].label.toLowerCase()}`);
+              },
+            },
+          });
+        }
+        return;
+      }
+
       setRole(role);
       // Keep the admin directory in step without writing a moderator audit entry (this is a self-service switch).
       useAdminStore.getState().upsertUser({

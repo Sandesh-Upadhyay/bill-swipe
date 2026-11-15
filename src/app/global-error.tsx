@@ -35,6 +35,8 @@ export default function GlobalError({ retry }: { error: unknown; retry: () => vo
             >
               Try again
             </button>
+            {/* A full page load is intentional: the root layout failed, so client navigation is not trusted. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a
               href="/"
               style={{ color: "#e8f5ef", border: "1px solid rgba(232,245,239,0.3)", borderRadius: 999, padding: "10px 20px", textDecoration: "none" }}

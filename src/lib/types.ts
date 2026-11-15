@@ -66,6 +66,14 @@ export interface Session {
   image: string;
   memberSince: string;
   onboarded: boolean;
+  /** "supabase" = real account (server-verified); "demo" or undefined = fictional browser-only session. */
+  source?: "demo" | "supabase";
+  /** Real accounts: account status from the database (server enforces it too). */
+  status?: "active" | "suspended";
+  /** Real accounts: admin flag from the is_admin() RPC. UI hint only; the server re-checks. */
+  isAdmin?: boolean;
+  avatarUrl?: string | null;
+  preferredCurrency?: CurrencyCode | null;
 }
 
 export type SwipeDirection = "left" | "right";

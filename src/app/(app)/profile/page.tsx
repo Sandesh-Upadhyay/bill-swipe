@@ -7,6 +7,7 @@ import { PageContainer, StatCard } from "@/components/layout/page-parts";
 import { DemoAvatar } from "@/components/brand/demo-avatar";
 import { CountryLabel } from "@/components/requests/badges";
 import { EditProfileForm } from "@/components/profile/edit-profile-form";
+import { AccountProfileForm } from "@/components/profile/account-profile-form";
 import { DangerZoneCard, PreferencesCard, RoleCard, SafetyCard } from "@/components/profile/settings-cards";
 import { formatCurrency, formatDate, toUsd } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
@@ -51,13 +52,23 @@ function ProfileView() {
       >
         <div className="absolute inset-0 bg-grid opacity-20" aria-hidden />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
-          <DemoAvatar seed={session.image} label={session.name} className="size-24 ring-4 ring-white/20 sm:size-28" />
+          {session.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- user avatar from Supabase Storage / Google
+            <img
+              src={session.avatarUrl}
+              alt={session.name}
+              referrerPolicy="no-referrer"
+              className="size-24 shrink-0 rounded-full object-cover ring-4 ring-white/20 sm:size-28"
+            />
+          ) : (
+            <DemoAvatar seed={session.image} label={session.name} className="size-24 ring-4 ring-white/20 sm:size-28" />
+          )}
           <div className="grid gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{session.name}</h1>
               <span className="rounded-full bg-mint/20 px-2.5 py-0.5 text-xs font-medium capitalize text-mint">{session.role}</span>
               <span className="rounded-full border border-dashed border-white/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/80">
-                Demo account
+                {session.source === "supabase" ? "Your account" : "Demo account"}
               </span>
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/75">
@@ -80,7 +91,7 @@ function ProfileView() {
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="grid content-start gap-6">
-          <EditProfileForm session={session} />
+          {session.source === "supabase" ? <AccountProfileForm session={session} /> : <EditProfileForm session={session} />}
           <RoleCard session={session} />
         </div>
         <div className="grid content-start gap-6">

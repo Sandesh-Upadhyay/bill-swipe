@@ -27,6 +27,8 @@ export function useReviewSignals(): Record<string, ReviewSignals> {
   const users = useAdminStore((s) => s.users);
   const categories = useAdminStore((s) => s.categories);
   const settings = useAdminStore((s) => s.settings);
+  // Reference time for "due soon" / "new account" flags, fixed per mount so render stays pure.
+  const [now] = React.useState(() => Date.now());
 
   return React.useMemo(() => {
     const duplicates = buildDuplicateIndex(requests);
@@ -34,7 +36,7 @@ export function useReviewSignals(): Record<string, ReviewSignals> {
     for (const rep of reports) if (rep.status === "open") openReports.set(rep.requestId, (openReports.get(rep.requestId) ?? 0) + 1);
     const usersById = new Map(users.map((u) => [u.id, u]));
     const caps = new Map(categories.map((c) => [c.id, c.maxAmountUsd]));
-    const now = Date.now();
+
     const out: Record<string, ReviewSignals> = {};
     for (const r of requests) {
       const dupes = duplicates[r.id] ?? [];
@@ -53,7 +55,7 @@ export function useReviewSignals(): Record<string, ReviewSignals> {
       };
     }
     return out;
-  }, [requests, reports, users, categories, settings]);
+  }, [requests, reports, users, categories, settings, now]);
 }
 
 export function signalsFor(index: Record<string, ReviewSignals>, request: Pick<BillRequest, "id"> | undefined | null) {

@@ -4,6 +4,7 @@ import { DemoAvatar } from "@/components/brand/demo-avatar";
 import { DemoBanner } from "@/components/layout/demo-banner";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { TAGLINE } from "@/lib/constants";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 const POINTS = [
   { icon: HandHeart, text: "Swipe right to show interest — never a payment." },
@@ -46,8 +47,17 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
             <FlaskConical className="mt-0.5 size-4 shrink-0 text-mint" />
             <p>
-              <strong className="text-white">Demo authentication.</strong> Sessions are stored only in this browser. No real accounts,
-              passwords or payment details are created or checked.
+              {isSupabaseConfigured ? (
+                <>
+                  <strong className="text-white">Secure accounts.</strong> Sign-in is handled by Supabase Auth with encrypted passwords. Demo
+                  profiles remain available and keep their fictional data in this browser only. No payment details are ever collected.
+                </>
+              ) : (
+                <>
+                  <strong className="text-white">Demo authentication.</strong> Sessions are stored only in this browser. No real accounts,
+                  passwords or payment details are created or checked.
+                </>
+              )}
             </p>
           </div>
         </aside>
