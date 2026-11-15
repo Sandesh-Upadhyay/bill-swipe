@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light only">
+  <title>Reset your password</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f8fbf9;">
+  <!-- Preheader: the preview line shown in the inbox list -->
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f8fbf9;">
+    Use this link to choose a new password for your BillSwipe account.
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f8fbf9;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
+
+          <!-- Wordmark -->
+          <tr>
+            <td style="padding:0 4px 20px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+              <span style="display:inline-block;width:28px;height:28px;line-height:28px;border-radius:8px;background-color:#007f4e;color:#ffffff;font-size:15px;font-weight:700;text-align:center;vertical-align:middle;">B</span>
+              <span style="font-size:18px;font-weight:700;color:#002619;vertical-align:middle;padding-left:8px;">BillSwipe</span>
+            </td>
+          </tr>
+
+          <!-- Card -->
+          <tr>
+            <td style="background-color:#ffffff;border:1px solid #dbe4de;border-radius:16px;padding:36px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+              <h1 style="margin:0 0 12px 0;font-size:22px;line-height:30px;font-weight:700;color:#091a11;">
+                Reset your password
+              </h1>
+              <p style="margin:0 0 24px 0;font-size:15px;line-height:24px;color:#4f5f56;">
+                We got a request to reset the password for <strong style="color:#091a11;">{{ .Email }}</strong>. Tap the button below to choose a new one.
+              </p>
+
+              <!-- Button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" bgcolor="#007f4e" style="border-radius:10px;">
+                    <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery"
+                       target="_blank"
+                       style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:10px;">
+                      Choose a new password
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:24px 0 0 0;font-size:13px;line-height:20px;color:#4f5f56;">
+                This link works once and expires in 1 hour. Your current password keeps working until you set a new one.
+              </p>
+
+              <!-- Fallback link -->
+              <p style="margin:20px 0 0 0;padding-top:20px;border-top:1px solid #dbe4de;font-size:13px;line-height:20px;color:#4f5f56;">
+                Button not working? Copy and paste this link into your browser:<br>
+                <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery" target="_blank" style="color:#007f4e;word-break:break-all;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#4f5f56;">
+              Didn't ask to reset your password? You can safely ignore this email. Nothing changes unless someone opens this link and sets a new password, so don't forward it to anyone.<br><br>
+              BillSwipe · <a href="{{ .SiteURL }}" target="_blank" style="color:#4f5f56;">{{ .SiteURL }}</a>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

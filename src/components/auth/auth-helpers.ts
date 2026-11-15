@@ -1,10 +1,11 @@
 import type { Role } from "@/lib/types";
+import { safeNextPath } from "@/lib/auth/redirects";
 
-/** Only allow internal, same-origin redirect targets. */
+/** Only allow internal, same-origin redirect targets (null when there's nothing safe). */
 export function safeNext(next: string | null | undefined) {
   if (!next) return null;
-  if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return null;
-  return next;
+  const safe = safeNextPath(next, "");
+  return safe || null;
 }
 
 export function defaultRouteFor(role: Role) {

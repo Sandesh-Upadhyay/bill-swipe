@@ -4,7 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Bookmark, Check, LayoutDashboard, LogOut, Shield, Sparkles, User } from "lucide-react";
+import { Bell, Bookmark, Check, LayoutDashboard, LogOut, Shield, Sparkles, User } from "lucide-react";
+import { useSignOut } from "@/components/auth/sign-out-button";
 import { cn } from "@/lib/utils";
 import { ROLE_INFO, RoleSwitchDialog, type SwitchableRole } from "./role-switch";
 import { DemoAvatar } from "@/components/brand/demo-avatar";
@@ -27,6 +28,7 @@ export function dashboardPath(role?: string) {
 export function UserMenu() {
   const session = useAuthStore((s) => s.session);
   const logout = useAuthStore((s) => s.logout);
+  const signOut = useSignOut();
   const router = useRouter();
   const [pendingRole, setPendingRole] = React.useState<SwitchableRole | null>(null);
   if (!session) return null;
@@ -45,7 +47,7 @@ export function UserMenu() {
             <span className="text-sm font-semibold text-foreground">{session.name}</span>
             <span className="truncate">{session.email}</span>
             <span className="mt-1 w-fit rounded-full bg-primary/12 px-2 py-0.5 text-[11px] font-medium capitalize text-primary">
-              {session.role} · demo
+              {session.role} · {session.source === "supabase" ? (session.isAdmin ? "admin account" : "account") : "demo"}
             </span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
@@ -105,7 +107,12 @@ export function UserMenu() {
               <User /> Profile & settings
             </Link>
           </DropdownMenuItem>
-          {session.role === "admin" && (
+          <DropdownMenuItem asChild>
+            <Link href="/notifications">
+              <Bell /> Notifications
+            </Link>
+          </DropdownMenuItem>
+          {(session.role === "admin" || (session.source === "supabase" && session.isAdmin)) && (
             <DropdownMenuItem asChild>
               <Link href="/admin">
                 <Shield /> Admin panel
@@ -116,6 +123,10 @@ export function UserMenu() {
           <DropdownMenuItem
             destructive
             onSelect={() => {
+              if (session.source === "supabase") {
+                void signOut();
+                return;
+              }
               // Navigate away first so auth guards on the current page don't redirect to /login.
               router.push("/");
               setTimeout(() => {

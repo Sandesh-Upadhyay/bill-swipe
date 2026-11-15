@@ -94,12 +94,15 @@ function NoteDialog({
 }) {
   const [note, setNote] = React.useState("");
   const [error, setError] = React.useState<string>();
-  React.useEffect(() => {
+  // Reset the form each time the dialog opens (adjusting state on prop change, not in an effect).
+  const [prevOpen, setPrevOpen] = React.useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setNote(action === "info" ? "Please add a recent bill or invoice showing the amount due." : "");
       setError(undefined);
     }
-  }, [open, action]);
+  }
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();

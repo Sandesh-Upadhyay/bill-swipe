@@ -1,4 +1,4 @@
-# Security model — BillSwipe v2.0, Phase 1
+# Security model — BillSwipe v2.0 (Phases 1–2)
 
 ## Principles
 
@@ -87,9 +87,33 @@ Execute privileges are granted explicitly per function.
 - Previews must use `createBillDocumentSignedUrl()` (60-second signed URLs). Never `getPublicUrl()` for financial documents.
 - Size and MIME limits are enforced by the Storage API from the bucket settings. Policies additionally check file extensions and folder ownership. `validateBillDocument()` gives users early feedback.
 
+## Authentication (Phase 2)
+
+- **Server-verified identity.** Every server decision uses `supabase.auth.getClaims()` (JWT signature + expiry checked), never `getSession()` or client state. Admin and account status are read from the database (`is_admin()`, `profiles.status`).
+- **Enforcement layers.**
+  - `src/proxy.ts` refreshes sessions and does an optimistic redirect for protected paths.
+  - `RouteGuard` (a server component in each protected layout) is the real check. It redirects anonymous users, blocks suspended accounts, and requires `is_admin()` for `/admin`.
+  - RLS protects the data itself.
+- **Server Actions** (`src/app/auth/actions.ts`):
+  - re-validate all input with zod
+  - take the user ID only from the verified session
+  - update profiles only through RLS (own row, permitted columns)
+- **No account enumeration.** Sign-up, resend and password reset show the same message whether or not an email is registered.
+- **Open-redirect protection.** `safeNextPath()` allows only same-origin paths. It rejects absolute URLs, `//host`, backslashes, encoded variants, control characters and `/auth/*` loops. It's unit-tested, and the callbacks always redirect on the app's own origin.
+- **Callbacks.** `/auth/callback` exchanges one-time codes (PKCE); `/auth/confirm` verifies token hashes. Provider errors are mapped to fixed messages, so raw provider text is never shown.
+- **Cookies.**
+  - Auth tokens live only in Supabase's cookies.
+  - `bs_remember` (httpOnly) makes them session-only when "Keep me signed in" is off.
+  - `bs_demo` marks a demo session and grants nothing beyond rendering demo pages.
+  - A real session always replaces a demo one.
+- **LocalStorage.** For real accounts it holds display info only, with no email or tokens. Demo data stays fictional.
+- **Suspension.** Login is refused for suspended accounts, and protected pages show a suspension screen. Database functions already block suspended users from submitting or contributing.
+- **Admin can't be self-granted.** Not at sign-up (metadata is ignored), not by profile edits (no column grant, guard trigger), not by URL or client state.
+- **No secrets in code or logs.** Only the publishable key is used. Passwords, tokens and session values are never logged or returned by actions.
+
 ## Testing
 
-`supabase/tests/database/` holds 121 assertions in 5 files:
+`supabase/tests/database/` holds 135 assertions in 6 files (06 covers Phase 2 profile creation and editing rules), plus `tests/unit/auth-helpers.test.ts` for redirect and cookie safety. Together they cover:
 - unauthorised access as anon and as other users
 - ownership
 - column-grant and guard-trigger bypass attempts
@@ -104,6 +128,8 @@ Run them with `pnpm db:test` (local Supabase) or `pnpm db:test:local` (no Docker
 
 ## Known limits (to address in later phases)
 
-- **Rate limiting:** no rate limiting on reports, swipes or sign-ups beyond Supabase defaults.
+- **Rate limiting:** no rate limiting on reports, swipes or sign-ups beyond Supabase Auth's built-in limits.
+- **Email delivery:** Supabase's built-in email service only reaches project team members. Configure custom SMTP before launch.
+- **Self-service:** email change and account deletion aren't self-service yet.
 - **Duplicate detection:** document hashes (`sha256`) are stored if the client provides them; server-side hashing and duplicate detection come in Phase 4.
 - **Realtime:** not enabled for any table. If enabled later, its authorization follows RLS and should be reviewed then.

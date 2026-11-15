@@ -26,7 +26,11 @@ export function AdminSkeleton() {
   );
 }
 
-/** Restricts the admin panel to the demo admin role. */
+/**
+ * Client-side presentation guard for the admin panel. The real check happens on the server
+ * (RouteGuard requireAdmin → is_admin() in the database). Real accounts pass here only when
+ * the server reported isAdmin; demo sessions use the demo admin role (fictional data only).
+ */
 export function AdminGuard({ children }: { children: React.ReactNode }) {
   const hydrated = useHydrated();
   const session = useAuthStore((s) => s.session);
@@ -41,7 +45,8 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!session || session.role !== "admin") {
+  const allowed = session?.source === "supabase" ? session.isAdmin === true : session?.role === "admin";
+  if (!session || !allowed) {
     return (
       <div className="grid min-h-[80dvh] place-items-center px-4 py-16">
         <div className="w-full max-w-md rounded-3xl border bg-card p-8 text-center shadow-lift">

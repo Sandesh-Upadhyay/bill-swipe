@@ -39,6 +39,8 @@ export default function RouteError({ error, retry }: { error: unknown; retry: ()
             variant="ghost"
             onClick={() => {
               resetAllDemoData();
+              // Full reload on purpose: in-memory stores must restart from the reset data.
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination
               window.location.assign("/");
             }}
           >

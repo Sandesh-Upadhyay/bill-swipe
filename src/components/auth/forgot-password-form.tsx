@@ -6,36 +6,58 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, Loader2, MailCheck, Send } from "lucide-react";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { requestPasswordResetAction } from "@/app/auth/actions";
 import { Button } from "@/components/ui/button";
 import { FieldError, Input } from "@/components/ui/basic";
 import { Label } from "@/components/ui/primitives";
 import { DemoAuthNotice } from "./demo-notice";
+import { AuthAlert } from "./auth-ui";
 
 const schema = z.object({ email: z.email("Enter a valid email address") });
 type Values = z.infer<typeof schema>;
 
 export function ForgotPasswordForm() {
+  const real = isSupabaseConfigured;
   const [sent, setSent] = React.useState<string | null>(null);
+  const [formError, setFormError] = React.useState<string | null>(null);
   const form = useForm<Values>({ resolver: zodResolver(schema), defaultValues: { email: "" } });
   const { errors, isSubmitting } = form.formState;
 
   const onSubmit = async (v: Values) => {
-    await new Promise((r) => setTimeout(r, 700));
+    setFormError(null);
+    if (real) {
+      const res = await requestPasswordResetAction(v.email);
+      if (!res.ok) {
+        if (res.field === "email") form.setError("email", { message: res.error });
+        else setFormError(res.error);
+        return;
+      }
+    } else {
+      await new Promise((r) => setTimeout(r, 700));
+    }
     setSent(v.email);
   };
 
   if (sent) {
     return (
-      <div className="grid justify-items-center gap-5 text-center" role="status">
+      <div className="grid justify-items-center gap-5 text-center" role="status" aria-live="polite">
         <span className="grid size-16 place-items-center rounded-full bg-primary/12 text-primary">
           <MailCheck className="size-8" />
         </span>
         <div className="grid gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Check your inbox (in the live product)</h1>
-          <p className="text-sm text-muted-foreground">
-            In the live product we&apos;d email a reset link to <strong className="text-foreground">{sent}</strong>.{" "}
-            <strong className="text-foreground">Nothing was sent</strong> — this is a demo, and demo accounts don&apos;t need a password.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">{real ? "Check your inbox" : "Check your inbox (in the live product)"}</h1>
+          {real ? (
+            <p className="text-sm text-muted-foreground">
+              If an account exists for <strong className="text-foreground">{sent}</strong>, we&apos;ve sent a link to reset your password. It expires
+              after a short time. Didn&apos;t get it? Check spam, or try again in a minute.
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              In the live product we&apos;d email a reset link to <strong className="text-foreground">{sent}</strong>.{" "}
+              <strong className="text-foreground">Nothing was sent</strong> — this is a demo, and demo accounts don&apos;t need a password.
+            </p>
+          )}
         </div>
         <div className="flex w-full flex-col gap-2 sm:flex-row">
           <Button variant="outline" className="flex-1" onClick={() => setSent(null)}>
@@ -50,28 +72,35 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <div className="grid gap-7">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-7">
       <Link href="/login" className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Back to log in
       </Link>
       <div className="grid gap-2">
-        <span className="w-fit rounded-full bg-primary/12 px-2.5 py-1 text-xs font-medium text-primary">Demo authentication</span>
+        <span className="w-fit rounded-full bg-primary/12 px-2.5 py-1 text-xs font-medium text-primary">{real ? "Account recovery" : "Demo authentication"}</span>
         <h1 className="text-3xl font-semibold tracking-tight">Reset your password</h1>
-        <p className="text-sm text-muted-foreground">Enter the email linked to your account and we&apos;ll simulate sending a reset link.</p>
+        <p className="text-sm text-muted-foreground">
+          {real
+            ? "Enter the email you signed up with and we'll send you a secure link to choose a new password."
+            : "Enter the email linked to your account and we'll simulate sending a reset link."}
+        </p>
       </div>
-      <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
+      {formError && <AuthAlert tone="error">{formError}</AuthAlert>}
+      <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4" aria-busy={isSubmitting}>
         <div className="grid gap-2">
           <Label htmlFor="fp-email">Email</Label>
-          <Input id="fp-email" type="email" autoComplete="email" aria-invalid={!!errors.email} aria-describedby="fp-email-err" {...form.register("email")} />
+          <Input id="fp-email" type="email" autoComplete="email" inputMode="email" aria-invalid={!!errors.email} aria-describedby="fp-email-err" {...form.register("email")} />
           <FieldError id="fp-email-err" message={errors.email?.message} />
         </div>
         <Button type="submit" size="lg" disabled={isSubmitting}>
-          {isSubmitting ? <Loader2 className="animate-spin" /> : <Send />} Send reset link
+          {isSubmitting ? <Loader2 className="animate-spin" /> : <Send />} {isSubmitting ? "Sending…" : "Send reset link"}
         </Button>
       </form>
-      <DemoAuthNotice>
-        <strong>Simulated.</strong> No email is sent. Demo accounts don&apos;t use real passwords.
-      </DemoAuthNotice>
+      {!real && (
+        <DemoAuthNotice>
+          <strong>Simulated.</strong> No email is sent. Demo accounts don&apos;t use real passwords.
+        </DemoAuthNotice>
+      )}
     </div>
   );
 }

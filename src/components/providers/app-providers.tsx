@@ -8,6 +8,7 @@ import { persistedStores } from "@/store";
 import { useHydrationStore } from "@/store/hydration-store";
 import { usePreferencesStore } from "@/store/preferences-store";
 import { documentLang, setFormatLocale } from "@/lib/i18n/locale";
+import { AuthSync } from "@/components/auth/auth-sync";
 
 /** Rehydrates every persisted Zustand store on the client, then flags the app as hydrated. */
 function StoreHydrator() {
@@ -73,6 +74,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange storageKey="billswipe:theme">
       <TooltipProvider>
         <StoreHydrator />
+        <AuthSync />
         <ThemeSync />
         <LocaleBoundary>{children}</LocaleBoundary>
         <ThemedToaster />
