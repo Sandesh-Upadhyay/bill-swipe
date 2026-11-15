@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light only">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>Verify your email · BillSwipe</title>
+  <!--[if mso]>
+  <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+  <![endif]-->
+  <style>
+    /* Clients that support <style> get tighter spacing on phones; everything else uses the inline styles. */
+    @media only screen and (max-width: 480px) {
+      .px { padding-left: 22px !important; padding-right: 22px !important; }
+      .h1 { font-size: 23px !important; }
+      .btn a { display: block !important; padding: 16px 20px !important; }
+    }
+    a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; }
+  </style>
+</head>
+
+<body style="margin:0;padding:0;width:100%;background-color:#f3f5f8;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+
+  <!-- Inbox preview text (hidden in the email body) -->
+  <div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:#f3f5f8;">
+    One tap to verify your email and finish setting up your BillSwipe account.&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f3f5f8;">
+    <tr>
+      <td align="center" style="padding:40px 12px;">
+
+        <!--[if mso]><table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background-color:#ffffff;border:1px solid #e3e8ee;border-radius:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#172033;">
+
+          <!-- Header -->
+          <tr>
+            <td align="center" bgcolor="#101827" style="background-color:#101827;border-radius:15px 15px 0 0;padding:30px 20px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td width="40" height="40" align="center" valign="middle" bgcolor="#16c784" style="width:40px;height:40px;background-color:#16c784;border-radius:10px;color:#071b13;font-size:20px;font-weight:800;line-height:40px;">B</td>
+                  <td style="padding-left:10px;color:#ffffff;font-size:25px;font-weight:700;letter-spacing:-0.5px;line-height:40px;">BillSwipe</td>
+                </tr>
+              </table>
+              <p style="margin:12px 0 0;color:#aebccc;font-size:13px;line-height:20px;">
+                Real people. Real bills. Help one swipe at a time.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Main content -->
+          <tr>
+            <td class="px" style="padding:40px 36px 8px;">
+
+              <!-- Check badge (table, not a div, so Outlook keeps the shape) -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td width="64" height="64" align="center" valign="middle" bgcolor="#e8f8ef" style="width:64px;height:64px;background-color:#e8f8ef;border-radius:32px;color:#0d9661;font-size:30px;font-weight:700;line-height:64px;">&#10003;</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <h1 class="h1" style="margin:24px 0 12px;text-align:center;font-size:26px;line-height:34px;font-weight:700;color:#172033;">
+                You're almost there!
+              </h1>
+
+              <p style="margin:0 0 24px;text-align:center;font-size:15px;line-height:26px;color:#64748b;">
+                Welcome to BillSwipe. Verify your email address to activate your account, then set up your profile in under a minute.
+              </p>
+
+              <!-- Email being verified -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 28px;">
+                <tr>
+                  <td bgcolor="#f8fafc" style="background-color:#f8fafc;border:1px solid #e8edf2;border-radius:10px;padding:14px 16px;">
+                    <p style="margin:0;color:#64748b;font-size:11px;line-height:16px;letter-spacing:0.8px;text-transform:uppercase;font-weight:700;">Verifying email for</p>
+                    <p style="margin:6px 0 0;color:#172033;font-size:15px;line-height:22px;font-weight:600;word-break:break-all;">{{ .Email }}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA button (bulletproof: the coloured cell is clickable-looking even where padding on <a> is ignored) -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" class="btn" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td align="center" bgcolor="#16c784" style="background-color:#16c784;border-radius:10px;">
+                          <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email"
+                             target="_blank"
+                             style="display:inline-block;padding:16px 36px;color:#071b13;font-size:16px;font-weight:700;line-height:20px;text-decoration:none;border-radius:10px;">
+                            Verify my email address &rarr;
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:16px 0 0;text-align:center;font-size:13px;line-height:20px;color:#64748b;">
+                This link works once and expires in <strong style="color:#334155;">1 hour</strong>.
+              </p>
+
+              <!-- What happens next -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:32px 0 0;border-top:1px solid #edf0f4;">
+                <tr>
+                  <td style="padding:24px 0 4px;color:#172033;font-size:14px;line-height:20px;font-weight:700;">What happens next</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0 0;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td width="30" valign="top" style="padding:2px 0 10px;"><span style="display:inline-block;width:22px;height:22px;line-height:22px;border-radius:11px;background-color:#e8f8ef;color:#0d9661;font-size:12px;font-weight:700;text-align:center;">1</span></td>
+                        <td valign="top" style="padding:2px 0 10px;color:#475569;font-size:14px;line-height:22px;"><strong style="color:#172033;">Verify your email</strong> with the button above.</td>
+                      </tr>
+                      <tr>
+                        <td width="30" valign="top" style="padding:2px 0 10px;"><span style="display:inline-block;width:22px;height:22px;line-height:22px;border-radius:11px;background-color:#e8f8ef;color:#0d9661;font-size:12px;font-weight:700;text-align:center;">2</span></td>
+                        <td valign="top" style="padding:2px 0 10px;color:#475569;font-size:14px;line-height:22px;"><strong style="color:#172033;">Set up your profile</strong> and choose whether you want to help or ask for help.</td>
+                      </tr>
+                      <tr>
+                        <td width="30" valign="top" style="padding:2px 0 0;"><span style="display:inline-block;width:22px;height:22px;line-height:22px;border-radius:11px;background-color:#e8f8ef;color:#0d9661;font-size:12px;font-weight:700;text-align:center;">3</span></td>
+                        <td valign="top" style="padding:2px 0 0;color:#475569;font-size:14px;line-height:22px;"><strong style="color:#172033;">Start swiping</strong> through bill requests, or share your own.</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Fallback link -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 0;border-top:1px solid #edf0f4;">
+                <tr>
+                  <td style="padding:24px 0 0;">
+                    <p style="margin:0 0 6px;color:#172033;font-size:13px;line-height:20px;font-weight:700;">Button not working?</p>
+                    <p style="margin:0;color:#64748b;font-size:12px;line-height:19px;">Copy and paste this link into your browser:</p>
+                    <p style="margin:8px 0 0;font-size:12px;line-height:19px;word-break:break-all;">
+                      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email" target="_blank" style="color:#0d9661;text-decoration:underline;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Security note -->
+          <tr>
+            <td class="px" style="padding:28px 36px 32px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td bgcolor="#fff8eb" style="background-color:#fff8eb;border:1px solid #fde7c2;border-radius:10px;padding:14px 16px;color:#7c5a1d;font-size:12px;line-height:19px;">
+                    <strong style="color:#5c4313;">Didn't create an account?</strong><br>
+                    You can safely ignore this email. The account can't be used unless this address is verified. BillSwipe will never ask for your password or payment details by email.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" bgcolor="#f8fafc" style="background-color:#f8fafc;border-top:1px solid #edf0f4;border-radius:0 0 15px 15px;padding:24px 20px;">
+              <p style="margin:0 0 6px;color:#334155;font-size:14px;line-height:20px;font-weight:700;">BillSwipe</p>
+              <p style="margin:0 0 10px;color:#94a3b8;font-size:11px;line-height:17px;">
+                <a href="{{ .SiteURL }}" target="_blank" style="color:#64748b;text-decoration:none;">Open BillSwipe</a>
+                &nbsp;·&nbsp;
+                <a href="{{ .SiteURL }}/faq" target="_blank" style="color:#64748b;text-decoration:none;">Help &amp; FAQ</a>
+                &nbsp;·&nbsp;
+                <a href="{{ .SiteURL }}/contact" target="_blank" style="color:#64748b;text-decoration:none;">Contact</a>
+              </p>
+              <p style="margin:0;color:#94a3b8;font-size:10px;line-height:16px;">
+                You're receiving this because this address was used to sign up for BillSwipe.<br>
+                This is an automated message, so replies aren't monitored.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+        <!--[if mso]></td></tr></table><![endif]-->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

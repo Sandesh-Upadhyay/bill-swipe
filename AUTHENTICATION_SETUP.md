@@ -61,8 +61,8 @@ One account can do both. `profiles.active_mode` is only the experience currently
 **Authentication → Emails → Templates** (recommended)
 - The default templates work with `/auth/callback`, but only when the link is opened in the same browser that requested it (PKCE).
 - To make links work in any browser, change the templates to use `/auth/confirm`:
-  - Confirm signup: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/onboarding`
-  - Reset password: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`
+  - Confirm signup: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email` (ready-made branded version: `supabase/templates/confirmation.html`, paste it into the template's **Source** tab; subject "Confirm your BillSwipe account")
+  - Reset password: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery` (branded version: `supabase/templates/recovery.html`; subject "Reset your BillSwipe password")
 
 **Vercel → Environment Variables** (when you're ready to switch the live site to real accounts)
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL=https://bill-swipe-five.vercel.app`

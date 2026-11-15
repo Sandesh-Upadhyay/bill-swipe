@@ -243,6 +243,16 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
+# Branded sign-up confirmation (same file is pasted into the hosted project's Emails → Confirm sign up).
+[auth.email.template.confirmation]
+subject = "Confirm your BillSwipe account"
+content_path = "./supabase/templates/confirmation.html"
+
+# Branded password reset (pasted into the hosted project's Emails → Reset password).
+[auth.email.template.recovery]
+subject = "Reset your BillSwipe password"
+content_path = "./supabase/templates/recovery.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"

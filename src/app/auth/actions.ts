@@ -294,7 +294,10 @@ export async function completeOnboardingAction(input: OnboardingInput, nextRaw?:
   if (error) return { ok: false, error: "Couldn't save your details. Please try again." };
   const profile = await loadProfile(supabase);
   if (!profile) return SESSION_EXPIRED;
-  return { ok: true, profile, next: safeNextPath(nextRaw, v.mode === "requester" ? "/dashboard/requester" : "/discover") };
+  const home = v.mode === "requester" ? "/dashboard/requester" : "/discover";
+  const next = safeNextPath(nextRaw, home);
+  // Sign-up links carry next=/onboarding; once onboarding is done, don't send the user back to it.
+  return { ok: true, profile, next: next === "/onboarding" || next.startsWith("/onboarding?") || next.startsWith("/onboarding/") ? home : next };
 }
 
 /** Saves an avatar path after the browser uploaded it to the user's own avatars folder. */
